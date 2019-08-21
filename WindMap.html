@@ -28,55 +28,61 @@
         .imgA1 {
             z-index: 1;
         }
+		
+		 
+		
     </style>
 </head>
 
 <body>
 
-    <p><img alt="" height="180" src="https://raw.githubusercontent.com/Adoucett/demos/master/wind_legend.png" style="float: left;" width="220"></p><img class="imgA1" height="168" src="https://raw.githubusercontent.com/Adoucett/demos/master/wind_legend.png"" width="300>
+<p><img alt="" height="108" src="https://raw.githubusercontent.com/Adoucett/demos/master/wind_legend.png" style="float: left;" width="220"></p><img class="imgA1" height="160" src="https://raw.githubusercontent.com/Adoucett/demos/master/wind_legend.png" width="300"> 
 
-    <style>
-        #menu {
-            background: #fff;
-            position: absolute;
-            z-index: 1;
-            top: 10px;
-            right: 10px;
-            border-radius: 3px;
-            width: 120px;
-            border: 1px solid rgba(0, 0, 0, 0.4);
-            font-family: 'Open Sans', sans-serif;
-        }
+
+<style>
         
-        #menu a {
-            font-size: 13px;
-            color: #404040;
-            display: block;
-            margin: 0;
-            padding: 0;
-            padding: 10px;
-            text-decoration: none;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.25);
-            text-align: center;
-        }
-        
-        #menu a:last-child {
-            border: none;
-        }
-        
-        #menu a:hover {
-            background-color: #f8f8f8;
-            color: #404040;
-        }
-        
-        #menu a.active {
-            background-color: #3887be;
-            color: #ffffff;
-        }
-        
-        #menu a.active:hover {
-            background: #3074a4;
-        }
+    #menu {
+        background: #fff;
+        position: absolute;
+        z-index: 1;
+        top: 10px;
+        right: 10px;
+        border-radius: 3px;
+        width: 120px;
+        border: 1px solid rgba(0,0,0,0.4);
+        font-family: 'Open Sans', sans-serif;
+    }
+
+    #menu a {
+        font-size: 13px;
+        color: #404040;
+        display: block;
+        margin: 0;
+        padding: 0;
+        padding: 10px;
+        text-decoration: none;
+        border-bottom: 1px solid rgba(0,0,0,0.25);
+        text-align: center;
+    }
+
+    #menu a:last-child {
+        border: none;
+    }
+
+    #menu a:hover {
+        background-color: #f8f8f8;
+        color: #404040;
+    }
+
+    #menu a.active {
+        background-color: #3887be;
+        color: #ffffff;
+    }
+
+    #menu a.active:hover {
+        background: #3074a4;
+    }
+		
     </style>
 
     <nav id="menu"></nav>
@@ -97,7 +103,7 @@
         //		var layerList = document.getElementById('menu');
         //		var inputs = layerList.getElementsByTagName('input');
 
-        // code from the next step will go here
+
 		
 		//pulsating markers	
 		
@@ -372,8 +378,10 @@ map.addSource('pulsepoint', {
         // Toggle Layers Menu//
 
         var toggleableLayerIds = ['Toggle-Satellite'];
+		
 
         for (var i = 0; i < toggleableLayerIds.length; i++) {
+		
             var id = toggleableLayerIds[i];
 
             var link = document.createElement('a');
@@ -455,9 +463,10 @@ var toggleableLayerIds = ['cluster-count', 'clusters'];
 	         }
 
 	      };
+		  
 	      var layers = document.getElementById('menu');
 	      layers.appendChild(link);
-	   
+	    
 
 
     </script>
