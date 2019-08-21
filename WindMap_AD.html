@@ -1,0 +1,476 @@
+<html>
+
+<head>
+<meta charset='utf-8' />
+<title>Demo Project - Wind Power Map - RESurety</title>
+<meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+<script src='https://api.tiles.mapbox.com/mapbox-gl-js/v1.2.1/mapbox-gl.js'></script>
+<link href='https://api.tiles.mapbox.com/mapbox-gl-js/v1.2.1/mapbox-gl.css' rel='stylesheet' />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+        
+        img {
+            position: absolute;
+            top: 10px;
+            left: 45px;
+        }
+        
+        .imgA1 {
+            z-index: 1;
+        }
+		
+		 
+		
+    </style>
+</head>
+
+<body>
+
+<p><img alt="" height="108" src="https://raw.githubusercontent.com/Adoucett/demos/master/wind_legend.png" style="float: left;" width="220"></p><img class="imgA1" height="160" src="https://raw.githubusercontent.com/Adoucett/demos/master/wind_legend.png" width="300"> 
+
+
+<style>
+        
+    #menu {
+        background: #fff;
+        position: absolute;
+        z-index: 1;
+        top: 10px;
+        right: 10px;
+        border-radius: 3px;
+        width: 120px;
+        border: 1px solid rgba(0,0,0,0.4);
+        font-family: 'Open Sans', sans-serif;
+    }
+
+    #menu a {
+        font-size: 13px;
+        color: #404040;
+        display: block;
+        margin: 0;
+        padding: 0;
+        padding: 10px;
+        text-decoration: none;
+        border-bottom: 1px solid rgba(0,0,0,0.25);
+        text-align: center;
+    }
+
+    #menu a:last-child {
+        border: none;
+    }
+
+    #menu a:hover {
+        background-color: #f8f8f8;
+        color: #404040;
+    }
+
+    #menu a.active {
+        background-color: #3887be;
+        color: #ffffff;
+    }
+
+    #menu a.active:hover {
+        background: #3074a4;
+    }
+		
+    </style>
+
+    <nav id="menu"></nav>
+    <div id="map"></div>
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoicGxhbmV0YWxwaGEiLCJhIjoiY2piM3p2bHl0MXhrdTJxbjJoYWZ0aTdsaCJ9.7rSS3ij4FyR71MCjFrOPuw';
+        var map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/adoucett/cjzlbi0070mwk1cn03kkj7hfi',
+            center: [-87.661557, 41.893748],
+            zoom: 4,
+			minZoom: 3,
+			maxZoom: 15
+        });
+
+        var hoveredStateId = null;
+        //		var layerList = document.getElementById('menu');
+        //		var inputs = layerList.getElementsByTagName('input');
+
+
+		
+		//pulsating markers	
+		
+	var framesPerSecond = 19; 
+	var initialOpacity = 1
+	var opacity = initialOpacity;
+	var initialRadius = 7;
+	var radius = initialRadius;
+	var maxRadius = 35;
+		
+		
+
+        map.on('load', function() {
+            map.addSource("dots_src", {
+                "type": "geojson",
+                "data": "https://raw.githubusercontent.com/Adoucett/json/master/WindFarms_Points.json",
+				"generateId": true
+            });
+
+           
+map.addSource('pulsepoint', {
+        "type": "geojson",
+        "data": "https://raw.githubusercontent.com/Adoucett/json/master/wind_outlier_points.json",
+    });
+		
+		
+	map.addLayer({
+        "id": "point",
+        "source": "pulsepoint",
+		"minzoom": 4.6,
+        "type": "circle",
+        "paint": {
+            "circle-radius": initialRadius,
+            "circle-radius-transition": {duration: 0},
+            "circle-opacity-transition": {duration: 0},
+            "circle-color": "#BF211E"
+        }
+    });
+
+ //   map.addLayer({
+ //       "id": "point1",
+ //       "source": "pulsepoint",
+  //      "type": "circle",
+ //       "paint": {
+  //          "circle-radius": initialRadius,
+  //          "circle-color": "#BF211E"
+  //      }
+  //  });
+
+
+    function animateMarker(timestamp) {
+        setTimeout(function(){
+            requestAnimationFrame(animateMarker);
+
+            radius += (maxRadius - radius) / framesPerSecond;
+            opacity -= ( .9 / framesPerSecond );
+
+            map.setPaintProperty('point', 'circle-radius', radius);
+            map.setPaintProperty('point', 'circle-opacity', opacity);
+
+            if (opacity <= 0) {
+                radius = initialRadius;
+                opacity = initialOpacity;
+            } 
+
+        }, 1000 / framesPerSecond);
+        
+    }
+
+    // Start the animation.
+    animateMarker(0);
+	
+		
+		////pulsating markers
+		
+
+
+
+
+		   map.addLayer({
+                "id": "dots",
+                "type": "circle",
+                "source": "dots_src",
+                "layout": {},
+                "paint": {
+                    "circle-radius": ["case", ["boolean", ["feature-state", "hover"], false],
+                        16,
+                        12
+                    ],
+                    "circle-opacity": ["case", ["boolean", ["feature-state", "hover"], false],
+                        .8,
+                        0
+                    ],
+                    "circle-color": ["case", ["boolean", ["feature-state", "hover"], false],
+                        "#27AE60",
+                        "#468ACB"
+                    ]
+                }
+            });
+
+
+///
+
+			map.on('click', 'dots', function (e) {
+			map.flyTo({center: e.features[0].geometry.coordinates,zoom: 9.5, speed: 0.2});
+			});
+
+/// Move Map on click 
+
+            // Hover Mouseover ///
+
+            map.on('mousemove', "dots", function(e) {
+
+                if (hoveredStateId) {
+                    map.setFeatureState({
+                        source: 'dots_src',
+                        id: hoveredStateId
+                    }, {
+                        hover: false
+                    });
+                }
+                hoveredStateId = e.features[0].id;
+                map.setFeatureState({
+                    source: 'dots_src',
+                    id: hoveredStateId
+                }, {
+                    hover: true
+                });
+            });
+
+            // When the mouse leaves the state-fill layer, update the feature state of the
+            // previously hovered feature.
+            map.on("mouseleave", "dots", function() {
+                if (hoveredStateId) {
+                    map.setFeatureState({
+                        source: 'dots_src',
+                        id: hoveredStateId
+                    }, {
+                        hover: false
+                    });
+                }
+
+                hoveredStateId = null;
+
+            });
+        });
+
+        /// Hover Mouseover ///
+
+        /// CLustering ////
+
+        map.on('load', function() {
+            // Add a new source from our GeoJSON data and set the
+            // 'cluster' option to true. GL-JS will add the point_count property to your source data.
+            map.addSource("loc_points", {
+                type: "geojson",
+                // Point to GeoJSON data. This example visualizes all M1.0+ earthquakes
+                // from 12/22/15 to 1/21/16 as logged by USGS' Earthquake hazards program.
+                data: "https://raw.githubusercontent.com/Adoucett/json/master/WindFarms_Points.json",
+                cluster: true,
+                clusterMaxZoom: 5, // Max zoom to cluster points on
+                clusterRadius: 70 // Radius of each cluster when clustering points (defaults to 50)
+            });
+
+            map.addLayer({
+                id: "clusters",
+                type: "circle",
+                source: "loc_points",
+                filter: ["has", "point_count"],
+                paint: {
+                    // Use step expressions (https://www.mapbox.com/mapbox-gl-js/style-spec/#expressions-step)
+                    // with three steps to implement three types of circles:
+                    //   * Blue, 20px circles when point count is less than 100
+                    //   * Yellow, 30px circles when point count is between 100 and 750
+                    //   * Pink, 40px circles when point count is greater than or equal to 750
+                    "circle-color": [
+                        "step", ["get", "point_count"],
+                        "#51bbd6",
+                        10,
+                        "#51bbd6",
+                        20,
+                        "#51bbd6"
+						
+                    ],
+                    "circle-radius": [
+                        "step", ["get", "point_count"],
+                        20,
+                        5,
+                        30,
+                        20,
+                        40
+                    ],
+                    "circle-opacity": [
+                        "interpolate", ["linear"],
+                        ["zoom"],
+                        4,
+                        0.8,
+                        6,
+                        0.5
+                    ]
+                }
+            });
+
+            map.addLayer({
+                id: "cluster-count",
+                type: "symbol",
+                source: "loc_points",
+                filter: ["has", "point_count"],
+                layout: {
+                    "text-field": "{point_count_abbreviated}",
+                    "text-font": ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
+                    "text-size": 14
+                }
+            });
+
+            /// Clustering ////
+
+            ///  Pop-Up Menus ///
+
+            map.on('click', function(e) {
+                var features = map.queryRenderedFeatures(e.point, {
+                    layers: ['windfarms-points'] // replace this with the name of the layer
+                });
+
+                if (!features.length) {
+                    return;
+                }
+
+                var feature = features[0];
+
+                var popup = new mapboxgl.Popup({
+                        offset: [0, -15]
+                    })
+                    .setLngLat(feature.geometry.coordinates)
+                    .setHTML(
+
+                        '<font size="2" face="arial">' +
+                        '<h3>' + feature.properties.Name + '</h3><p>' + '<b>Capacity (MW): </b>' + feature.properties.CapacityMW + '</p>' + '<b>Generation MW: </b>' + feature.properties.GEN_MW + '</p>' + '<b>Output Percentage: </b>' + feature.properties.PCT_Capaci + '</p>' + '<p>' + '<a href=" ' + feature.properties.URL_ + '"target="_blank"><strong>More Information</strong></a>' +
+                        '</font>'
+
+                    )
+                    .setLngLat(feature.geometry.coordinates)
+                    .addTo(map);
+            });
+
+
+
+            /// Pop-Up Menus//////
+
+            /// Cursor Styling /////
+
+            map.on("mouseenter", 'dots', function(e) {
+                // Change the cursor style as a UI indicator.
+                map.getCanvas().style.cursor = 'pointer';
+            });
+
+            map.on('mouseleave', 'dots', function() {
+                map.getCanvas().style.cursor = '';
+
+            });
+
+            /// Cursor Styling /// 
+
+            //Nav Controls ///
+
+            var nav = new mapboxgl.NavigationControl();
+            map.addControl(nav, 'top-left');
+        });
+
+        /// Nav Controls ///
+
+        // Toggle Layers Menu//
+
+        var toggleableLayerIds = ['Toggle-Satellite'];
+		
+
+        for (var i = 0; i < toggleableLayerIds.length; i++) {
+		
+            var id = toggleableLayerIds[i];
+
+            var link = document.createElement('a');
+            link.href = '#';
+            link.className = 'active';
+            link.textContent = id;
+
+            link.onclick = function(e) {
+                var clickedLayer = this.textContent;
+                e.preventDefault();
+                e.stopPropagation();
+
+                var visibility = map.getLayoutProperty(clickedLayer, 'visibility');
+
+                if (visibility === 'visible') {
+                    map.setLayoutProperty(clickedLayer, 'visibility', 'none');
+                    this.className = '';
+                } else {
+                    this.className = 'active';
+                    map.setLayoutProperty(clickedLayer, 'visibility', 'visible');
+                }
+            };
+
+            var layers = document.getElementById('menu');
+            layers.appendChild(link);
+        }
+		
+		
+var toggleableLayerIdsB = ['point'];
+
+	      var link = document.createElement('a');
+	      link.href = '#';
+	      link.className = 'active';
+	      link.textContent = "Troubled Asset Warning";
+	      link.onclick = function (e) {
+	         for(var index in toggleableLayerIdsB) {
+	           var clickedLayer = toggleableLayerIdsB[index];
+	           e.preventDefault();
+	           e.stopPropagation();
+
+	           var visibility = map.getLayoutProperty(clickedLayer, 'visibility');
+
+	           if (visibility === 'visible') {
+	               map.setLayoutProperty(clickedLayer, 'visibility', 'none');
+	               this.className = '';
+	           } else {
+	               this.className = 'active';
+	               map.setLayoutProperty(clickedLayer, 'visibility', 'visible');
+	           }
+	         }
+
+	      };
+	      var layers = document.getElementById('menu');
+	      layers.appendChild(link);
+	   
+
+		
+var toggleableLayerIds = ['cluster-count', 'clusters'];
+
+	      var link = document.createElement('a');
+	      link.href = '#';
+	      link.className = 'active';
+	      link.textContent = "Clustering On/Off";
+	      link.onclick = function (e) {
+	         for(var index in toggleableLayerIds) {
+	           var clickedLayer = toggleableLayerIds[index];
+	           e.preventDefault();
+	           e.stopPropagation();
+
+	           var visibility = map.getLayoutProperty(clickedLayer, 'visibility');
+
+	           if (visibility === 'visible') {
+	               map.setLayoutProperty(clickedLayer, 'visibility', 'none');
+	               this.className = '';
+	           } else {
+	               this.className = 'active';
+	               map.setLayoutProperty(clickedLayer, 'visibility', 'visible');
+	           }
+	         }
+
+	      };
+		  
+	      var layers = document.getElementById('menu');
+	      layers.appendChild(link);
+	    
+
+
+    </script>
+
+</body>
+
+</html>
