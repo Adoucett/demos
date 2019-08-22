@@ -1,11 +1,17 @@
 <html>
 <head>
-  <title>A Leaflet map!</title>
-  <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css"/>
-  <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
-	    <script src="jquery-2.1.1.min.js"></script> 
+  <title>A Leaflet Wind map!</title>
+  <link rel="stylesheet" href="https://d19vzq90twjlae.cloudfront.net/leaflet-0.7.3/leaflet.css" />
+  <link rel="stylesheet" href="MarkerCluster.css" />
+  <script src="https://d19vzq90twjlae.cloudfront.net/leaflet-0.7.3/leaflet.js"></script>
+  <script src="leaflet.markercluster.js"></script>
+  <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+  <script type="text/javascript" src="http://code.jquery.com/jquery-1.10.2.js"></script>
+  
+  
+  
   <style>
-    #map{ width: 1200px; height: 800px; }
+    #map{ height: 100% }
   </style>
 </head>
 <body>
@@ -27,19 +33,33 @@
 	}).addTo(map);
 
   // load GeoJSON from an external file
-  $.getJSON("Points.geojson",function(data){
-    var ratIcon = L.icon({
-      iconUrl: 'http://andywoodruff.com/maptime-leaflet/rat.png',
-      iconSize: [60,50]
+// load GeoJSON from an external file
+
+
+ $.getJSON("Points.geojson",function(data){
+    var Icon = L.icon({
+      iconUrl: 'https://raw.githubusercontent.com/Adoucett/demos/master/wind_symbol.png',
+      iconSize: [40,40]
     });
-    L.geoJson(data,{
+    var mappoints = L.geoJson(data,{
       pointToLayer: function(feature,latlng){
-        var marker = L.marker(latlng,{icon: ratIcon});
-        marker.bindPopup(feature.properties.Location + '<br/>' + feature.properties.OPEN_DT);
+        var marker = L.marker(latlng,{icon: Icon});
+        marker.bindPopup(  
+		feature.properties.Name + 
+		'<br/>' + "Capacity: " 
+		+ feature.properties.CapacityMW + " MW" + 
+		'<br/>' + "Annual Generation: " + Math.round(feature.properties.GenerationMWhPerYear) + " MW" + 
+		'</br>' + "Load Factor: " + Math.round((([feature.properties.GenerationMWhPerYear/(feature.properties.CapacityMW*8760)])*100)) + "%"
+);
         return marker;
       }
-    }).addTo(map);
+    });
+    var clusters = L.markerClusterGroup();
+    clusters.addLayer(mappoints);
+    map.addLayer(clusters);
   });
+
+
 
 
   </script>
