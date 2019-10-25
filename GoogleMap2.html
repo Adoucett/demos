@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Styled Map by Aaron D</title>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <style>
+      /* Always set the map height explicitly to define the size of the div
+       * element that contains the map. */
+      #map {
+        height: 100%;
+      }
+      /* Optional: Makes the sample page fill the window. */
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script>
+      function initMap() {
+
+        // Create a new StyledMapType object, passing it an array of styles,
+        // and the name to be displayed on the map type control.
+        var styledMapType = new google.maps.StyledMapType(
+            [{"featureType":"administrative.province","elementType":"geometry","stylers":[{"color":"#9699a6"},{"weight":"2.00"}]},{"featureType":"administrative.province","elementType":"labels.text.fill","stylers":[{"color":"#0b0b0b"}]},{"featureType":"administrative.locality","elementType":"labels.text.fill","stylers":[{"color":"#0a0a0a"},{"saturation":"19"}]},{"featureType":"administrative.locality","elementType":"labels.text.stroke","stylers":[{"color":"#f2f2f2"},{"weight":"1.94"}]},{"featureType":"landscape.man_made","elementType":"geometry.fill","stylers":[{"color":"#efe9e1"}]},{"featureType":"landscape.natural","elementType":"all","stylers":[{"color":"#eae7e1"}]},{"featureType":"landscape.natural.landcover","elementType":"geometry","stylers":[{"color":"#efe9e1"},{"visibility":"simplified"}]},{"featureType":"landscape.natural.landcover","elementType":"geometry.fill","stylers":[{"weight":"0.60"},{"color":"#efe9e1"}]},{"featureType":"landscape.natural.terrain","elementType":"geometry.fill","stylers":[{"color":"#b1de97"},{"lightness":"-3"}]},{"featureType":"poi.attraction","elementType":"labels.text.fill","stylers":[{"color":"#816856"}]},{"featureType":"poi.attraction","elementType":"labels.icon","stylers":[{"visibility":"simplified"},{"color":"#816856"}]},{"featureType":"poi.business","elementType":"all","stylers":[{"visibility":"off"}]},{"featureType":"poi.business","elementType":"geometry","stylers":[{"color":"#b5e59e"}]},{"featureType":"poi.business","elementType":"labels.text.fill","stylers":[{"color":"#cc652a"}]},{"featureType":"poi.business","elementType":"labels.icon","stylers":[{"color":"#735139"}]},{"featureType":"poi.medical","elementType":"labels.text.fill","stylers":[{"color":"#b35071"}]},{"featureType":"poi.park","elementType":"geometry.fill","stylers":[{"color":"#b5e59e"}]},{"featureType":"poi.park","elementType":"labels","stylers":[{"visibility":"off"}]},{"featureType":"poi.park","elementType":"labels.icon","stylers":[{"hue":"#ff0000"}]},{"featureType":"poi.school","elementType":"geometry.fill","stylers":[{"color":"#e5deb8"},{"lightness":"3"}]},{"featureType":"road.highway","elementType":"geometry.fill","stylers":[{"color":"#f2d163"}]},{"featureType":"road.highway","elementType":"geometry.stroke","stylers":[{"color":"#f0e3e3"},{"weight":"1.00"}]},{"featureType":"road.highway","elementType":"labels.text","stylers":[{"weight":"2.00"}]},{"featureType":"road.highway","elementType":"labels.text.fill","stylers":[{"weight":"2.00"}]},{"featureType":"road.highway.controlled_access","elementType":"geometry.fill","stylers":[{"color":"#ffa35c"},{"weight":"3.5"}]},{"featureType":"road.highway.controlled_access","elementType":"geometry.stroke","stylers":[{"color":"#fffefe"},{"weight":"2"}]},{"featureType":"road.arterial","elementType":"geometry.fill","stylers":[{"color":"#ffffff"}]},{"featureType":"road.arterial","elementType":"geometry.stroke","stylers":[{"color":"#d6d9e6"},{"weight":"1.5"},{"lightness":"32"}]},{"featureType":"transit.station","elementType":"labels.icon","stylers":[{"weight":"3.52"},{"visibility":"on"}]},{"featureType":"water","elementType":"geometry.fill","stylers":[{"color":"#75cff0"}]},{"featureType":"water","elementType":"geometry.stroke","stylers":[{"color":"#6ea5f2"},{"weight":"1"}]}],
+            {name: 'Styled Map'});
+
+        // Create a map object, and include the MapTypeId to add
+        // to the map type control.
+        var map = new google.maps.Map(document.getElementById('map'), {
+          center: {lat: 42.360, lng: -71.058},
+          zoom: 10,
+          mapTypeControlOptions: {
+            mapTypeIds: ['roadmap', 'satellite', 'hybrid', 'terrain',
+                    'styled_map']
+          }
+        });
+
+        //Associate the styled map with the MapTypeId and set it to display.
+        map.mapTypes.set('styled_map', styledMapType);
+        map.setMapTypeId('styled_map');
+      }
+    </script>
+    <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBQQXo9MNHA3vlAPc7s8-LNLRb4kbNm-24&callback=initMap">
+    </script>
+  </body>
+</html>
+
