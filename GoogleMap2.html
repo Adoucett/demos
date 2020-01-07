@@ -47,6 +47,10 @@
         map.mapTypes.set('styled_map', styledMapType);
         map.setMapTypeId('styled_map');
       }
+      
+      
+      map.data.loadGeoJson('https://raw.githubusercontent.com/Adoucett/demos/master/gmapsdata.geojson');
+      
     </script>
     <script async defer
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBQQXo9MNHA3vlAPc7s8-LNLRb4kbNm-24&callback=initMap">
