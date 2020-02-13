@@ -1,0 +1,145 @@
+<head>
+  <title>Hexagon + Google Maps</title>
+  <meta name="viewport" content="initial-scale=1.0">
+  <meta charset="utf-8">
+  <style>
+    /* Always set the map height explicitly to define the size of the div
+       * element that contains the map. */
+    #map {
+      height: 100%;
+    }
+
+    /* Optional: Makes the sample page fill the window. */
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    #floating-panel {
+      position: absolute;
+      top: 10px;
+      left: 25%;
+      z-index: 5;
+      background-color: #fff;
+      padding: 5px;
+      border: 1px solid #999;
+      text-align: center;
+      font-family: 'Roboto', 'sans-serif';
+      line-height: 30px;
+      padding-left: 10px;
+    }
+
+  </style>
+</head>
+
+<body>
+
+
+  <div id="floating-panel">
+    <input onclick="removeOverlay();" type=button value="Remove Giza overlay">
+    <input onclick="addOverlay();" type=button value="Add Giza Overlay">
+  </div>
+
+  <div id="map"></div>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBQQXo9MNHA3vlAPc7s8-LNLRb4kbNm-24&callback=initMap"></script>
+  <script>
+    var map;
+   var inserted = true;
+
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: {
+          lat: 39.16,
+          lng: -119.767
+        },
+        zoom: 12
+      });
+
+
+      // "Normal" 256 tiles
+      //var TILE_WIDTH = 256;
+      //var TILE_HEIGHT = 256;
+
+      // Set tile size to map size to get just one single tile. But still  multiple tiles is fetched from server
+      var TILE_WIDTH = getMapWidth();
+      var TILE_HEIGHT = getMapHeight();
+
+
+      var wmsOptions = {
+        getTileUrl: WMSGetTileUrl,
+        tileSize: new google.maps.Size(TILE_WIDTH, TILE_HEIGHT)
+      };
+
+      var wmsMapType = new google.maps.ImageMapType(wmsOptions);
+      map.overlayMapTypes.insertAt(0, wmsMapType);
+
+      function WMSGetTileUrl(tile, zoom) {
+        var projection = map.getProjection();
+        var zpow = Math.pow(2, zoom);
+        var ul = new google.maps.Point(tile.x * TILE_WIDTH / zpow, (tile.y + 1) * TILE_HEIGHT / zpow);
+        var lr = new google.maps.Point((tile.x + 1) * TILE_WIDTH / zpow, (tile.y) * TILE_HEIGHT / zpow);
+        var ulw = projection.fromPointToLatLng(ul);
+        var lrw = projection.fromPointToLatLng(lr);
+        //The user will enter the address to the public WMS layer here.  The data must be in WGS84
+        var baseURL = "https://wms.appgeo.com/login/path/lithium-mike-transit-kevin/wms/?";
+        var version = "1.1.1";
+        var request = "GetMap";
+        var format = "image/png"; //type of image returned 
+        //The layer ID.  Can be found when using the layers properties tool in ArcMap
+        var layers = "hexigon_us_aerial_15cm_cache";
+        var srs = "EPSG:4326"; //projection to display. This is the projection of google map. 
+        var bbox = ulw.lng() + "," + ulw.lat() + "," + lrw.lng() + "," + lrw.lat();
+
+        //Add the components of the URL together
+        var width = TILE_WIDTH;
+        var height = TILE_HEIGHT;
+
+        var styles = "default";
+
+        var url = baseURL + "version=" + version + "&request=" + request + "&Layers=" + layers + "&Styles=" + styles + "&SRS=" + srs + "&BBOX=" + bbox + "&width=" + width + "&height=" + height + "&format=" + format + "&TRANSPARENT=TRUE";
+        return url;
+
+
+
+      }
+
+      function getMapHeight() {
+        var h = map.getDiv().offsetHeight;
+        console.log('Google Map height is ' + h);
+        return h;
+      }
+
+      function getMapWidth() {
+        var w = map.getDiv().offsetWidth;
+        console.log('Google Map width is ' + w);
+        return w;
+      }
+
+      //// Show/Hide Overlay Function
+
+      function addOverlay() {
+      if (inserted) {
+      return;
+      }
+        map.overlayMapTypes.insertAt(0, wmsMapType);
+        inserted = true;
+      }
+
+      function removeOverlay() {
+      if (!inserted) {
+      return;
+      }
+       map.overlayMapTypes.removeAt(0)
+
+inserted = false
+      }
+
+
+
+
+
+
+  </script>
+
+</body>
