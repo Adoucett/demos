@@ -34,20 +34,63 @@
       padding-left: 10px;
     }
 	
+#button {
+ background-color: #bbb;
+ padding: .5em;
+ -moz-border-radius: 5px;
+ -webkit-border-radius: 5px;
+ border-radius: 6px;
+ color: #fff;
+ font-family: 'Oswald';
+ font-size: 20px;
+ text-decoration: none;
+ border: none;
+}
+#button:hover {
+ border: none;
+ background: orange;
+ box-shadow: 0px 0px 1px #777;
+}
 
   </style>
 </head>
 
 <body>
 
-
+ 
   <div id="floating-panel">
+  
+  
+    <input id="searchTextField" type="text" size="50" placeholder="Enter a location" autocomplete="on" runat="server" />  
+    <input type="hidden" id="city2" name="city2" />
+    <input type="hidden" id="cityLat" name="cityLat" />
+    <input type="hidden" id="cityLng" name="cityLng" />
+
+
+
     <input onclick="removeOverlay();" type=button value="Remove Giza overlay">
     <input onclick="addOverlay();" type=button value="Add Giza Overlay">
+
   </div>
 
   <div id="map"></div>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBQQXo9MNHA3vlAPc7s8-LNLRb4kbNm-24&callback=initMap"></script>
+	     <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBQQXo9MNHA3vlAPc7s8-LNLRb4kbNm-24&libraries=places"></script>
+    <script>
+        function initialize() {
+          var input = document.getElementById('searchTextField');
+          var autocomplete = new google.maps.places.Autocomplete(input);
+            google.maps.event.addListener(autocomplete, 'place_changed', function () {
+                var place = autocomplete.getPlace();
+                document.getElementById('city2').value = place.name;
+                document.getElementById('cityLat').value = place.geometry.location.lat();
+                document.getElementById('cityLng').value = place.geometry.location.lng();
+            });
+        }
+        google.maps.event.addDomListener(window, 'load', initialize);
+    </script>
+
+	
   <script>
     var map;
    var inserted = true;
@@ -77,6 +120,19 @@
 
       var wmsMapType = new google.maps.ImageMapType(wmsOptions);
       map.overlayMapTypes.insertAt(0, wmsMapType);
+	  
+	  
+	  
+	  function initialize() {
+  var input = document.getElementById('searchTextField');
+  new google.maps.places.Autocomplete(input);
+}
+
+google.maps.event.addDomListener(window, 'load', initialize);
+	  
+	  
+	  
+	  
 
       function WMSGetTileUrl(tile, zoom) {
         var projection = map.getProjection();
