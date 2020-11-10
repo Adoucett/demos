@@ -1,5 +1,5 @@
 <head>
-  <title>Hexagon + Google Maps</title>
+  <title>NWS + Google Maps</title>
   <meta name="viewport" content="initial-scale=1.0">
   <meta charset="utf-8">
   <style>
@@ -34,63 +34,20 @@
       padding-left: 10px;
     }
 	
-#button {
- background-color: #bbb;
- padding: .5em;
- -moz-border-radius: 5px;
- -webkit-border-radius: 5px;
- border-radius: 6px;
- color: #fff;
- font-family: 'Oswald';
- font-size: 20px;
- text-decoration: none;
- border: none;
-}
-#button:hover {
- border: none;
- background: orange;
- box-shadow: 0px 0px 1px #777;
-}
 
   </style>
 </head>
 
 <body>
 
- 
+
   <div id="floating-panel">
-  
-  
-    <input id="searchTextField" type="text" size="50" placeholder="Enter a location" autocomplete="on" runat="server" />  
-    <input type="hidden" id="city2" name="city2" />
-    <input type="hidden" id="cityLat" name="cityLat" />
-    <input type="hidden" id="cityLng" name="cityLng" />
-
-
-
-    <input onclick="removeOverlay();" type=button value="Remove Giza overlay">
-    <input onclick="addOverlay();" type=button value="Add Giza Overlay">
-
+    <input onclick="removeOverlay();" type=button value="Remove NWS overlay">
+    <input onclick="addOverlay();" type=button value="Add NWS Overlay">
   </div>
 
   <div id="map"></div>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBQQXo9MNHA3vlAPc7s8-LNLRb4kbNm-24&callback=initMap"></script>
-	     <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBQQXo9MNHA3vlAPc7s8-LNLRb4kbNm-24&libraries=places"></script>
-    <script>
-        function initialize() {
-          var input = document.getElementById('searchTextField');
-          var autocomplete = new google.maps.places.Autocomplete(input);
-            google.maps.event.addListener(autocomplete, 'place_changed', function () {
-                var place = autocomplete.getPlace();
-                document.getElementById('city2').value = place.name;
-                document.getElementById('cityLat').value = place.geometry.location.lat();
-                document.getElementById('cityLng').value = place.geometry.location.lng();
-            });
-        }
-        google.maps.event.addDomListener(window, 'load', initialize);
-    </script>
-
-	
   <script>
     var map;
    var inserted = true;
@@ -120,19 +77,6 @@
 
       var wmsMapType = new google.maps.ImageMapType(wmsOptions);
       map.overlayMapTypes.insertAt(0, wmsMapType);
-	  
-	  
-	  
-	  function initialize() {
-  var input = document.getElementById('searchTextField');
-  new google.maps.places.Autocomplete(input);
-}
-
-google.maps.event.addDomListener(window, 'load', initialize);
-	  
-	  
-	  
-	  
 
       function WMSGetTileUrl(tile, zoom) {
         var projection = map.getProjection();
@@ -142,12 +86,12 @@ google.maps.event.addDomListener(window, 'load', initialize);
         var ulw = projection.fromPointToLatLng(ul);
         var lrw = projection.fromPointToLatLng(lr);
         //The user will enter the address to the public WMS layer here.  The data must be in WGS84
-        var baseURL = "https://wms.appgeo.com/login/path/break-finland-canal-flame/wms/?";
-        var version = "1.1.1";
+        var baseURL = "http://idpgis.ncep.noaa.gov/arcgis/services/NWS_Forecasts_Guidance_Warnings/watch_warn_adv/MapServer/WmsServer?";
+        var version = "1.3.0";
         var request = "GetMap";
         var format = "image/png"; //type of image returned 
         //The layer ID.  Can be found when using the layers properties tool in ArcMap
-        var layers = "hexigon_us_aerial_15cm_cache";
+        var layers = "WatchesWarnings";
         var srs = "EPSG:4326"; //projection to display. This is the projection of google map. 
         var bbox = ulw.lng() + "," + ulw.lat() + "," + lrw.lng() + "," + lrw.lat();
 

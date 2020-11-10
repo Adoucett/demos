@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Local Eatery Map Sample</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
+    <script
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBQQXo9MNHA3vlAPc7s8-LNLRb4kbNm-24&callback=initMap&libraries=localContext&v=beta&map_ids=14e0fde0721335cd"
+      async defer></script>
+ 
+
+	  
+    <style type="text/css">
+      /* Always set the map height explicitly to define the size of the div
+       * element that contains the map. */
+      #map {
+        height: 100%;
+      }
+
+      /* Optional: Makes the sample page fill the window. */
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+    <script>
+      "use strict";
+
+
+
+let bigBounds = {
+  north: 42.36170,
+  south: 42.3533,
+  west: -71.05811,
+  east: -71.04894,
+};
+
+function initMap() {
+  const map = new google.maps.Map(document.createElement('div'),
+    {center: {lat: 42.358529, lng: -71.054342},
+    zoom: 16,
+    mapId: '14e0fde0721335cd'});
+  const localContextMapView = new google.maps.localContext.LocalContextMapView({
+    element: document.querySelector("#map"),
+    placeTypePreferences: ["restaurant"],
+	directionsOptions: {origin: {lat: 42.358529, lng: -71.054342}},
+	placeDetailsViewSetup: {layoutMode: 'INFO_WINDOW'},
+    map,
+    maxPlaceCount: 16,
+	locationRestriction: bigBounds,
+  });
+  
+   var marker = new google.maps.Marker({
+    position: {lat: 42.358529, lng: -71.054342},
+   map: map,
+   title: 'AppGeo Office'
+});
+  
+
+
+  
+};
+
+
+	  
+	  
+    </script>
+  </head>
+  <body>
+    <div id="map"></div>
+  </body>
+</html>
