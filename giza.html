@@ -1,0 +1,109 @@
+<div class="post-content">
+				<div class="fusion-fullwidth fullwidth-box fusion-builder-row-1 fusion-flex-container nonhundred-percent-fullwidth non-hundred-percent-height-scrolling" style="background-color: #ffffff;background-position: center center;background-repeat: no-repeat;border-width: 0px 0px 0px 0px;border-color:#eae9e9;border-style:solid;"><div class="fusion-builder-row fusion-row fusion-flex-align-items-flex-start" style="max-width:1144px;margin-left: calc(-4% / 2 );margin-right: calc(-4% / 2 );"><div class="fusion-layout-column fusion_builder_column fusion-builder-column-0 fusion_builder_column_1_1 1_1 fusion-flex-column"><div class="fusion-column-wrapper fusion-flex-justify-content-flex-start fusion-content-layout-column" style="background-position:left top;background-repeat:no-repeat;-webkit-background-size:cover;-moz-background-size:cover;-o-background-size:cover;background-size:cover;padding: 0px 0px 0px 0px;"><div class="fusion-text fusion-text-1" style="text-transform:none;"><h1 style="margin-top: 0px; --fontSize: 35; line-height: 1.45;" data-fontsize="35" data-lineheight="50.75px" class="fusion-responsive-typography-calculated">Try Giza Live</h1>
+<p>Experience the ease of use of streaming imagery with Giza in your browser. Sample imagery provided from the Chicago metro area.</p>
+<p><strong>Want a free trial in your own software?</strong> <a href="https://getgiza.com/trial/"><strong>Apply for direct WMTS access.</strong></a></p>
+<p><a href="https://getgiza.com/demo/">Also try Urban Imagery: Chicago</a></p>
+</div>
+
+<meta charset="utf-8">
+<title>Add a WMS source</title>
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<link href="https://api.mapbox.com/mapbox-gl-js/v2.7.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v2.7.0/mapbox-gl.js"></script>
+<style>
+body { margin: 0; padding: 10; }
+#map {width: 100%; height: 600px; max-width:100%;}
+</style>
+
+
+<div id="map" class="mapboxgl-map"><div class="mapboxgl-canary" style="visibility: hidden;"></div><div class="mapboxgl-canvas-container mapboxgl-interactive mapboxgl-touch-drag-pan mapboxgl-touch-zoom-rotate"><canvas class="mapboxgl-canvas" tabindex="0" aria-label="Map" role="region" width="936" height="539" style="width: 1040.07px; height: 600px;"></canvas></div><div class="mapboxgl-control-container"><div class="mapboxgl-ctrl-top-left"></div><div class="mapboxgl-ctrl-top-right"><div class="mapboxgl-ctrl mapboxgl-ctrl-group"><button class="mapboxgl-ctrl-fullscreen" type="button" aria-label="Enter fullscreen"><span class="mapboxgl-ctrl-icon" aria-hidden="true" title="Enter fullscreen"></span></button></div></div><div class="mapboxgl-ctrl-bottom-left"><div class="mapboxgl-ctrl" style="display: block;"><a class="mapboxgl-ctrl-logo" target="_blank" rel="noopener nofollow" href="https://www.mapbox.com/" aria-label="Mapbox logo"></a></div></div><div class="mapboxgl-ctrl-bottom-right"><div class="mapboxgl-ctrl mapboxgl-ctrl-attrib"><button class="mapboxgl-ctrl-attrib-button" type="button" aria-label="Toggle attribution"><span class="mapboxgl-ctrl-icon" aria-hidden="true" title="Toggle attribution"></span></button><div class="mapboxgl-ctrl-attrib-inner" role="list"><a href="https://www.mapbox.com/about/maps/" target="_blank" title="Mapbox" aria-label="Mapbox">© Mapbox</a> <a href="https://www.openstreetmap.org/about/" target="_blank" title="OpenStreetMap" aria-label="OpenStreetMap">© OpenStreetMap</a> <a class="mapbox-improve-map" href="https://apps.mapbox.com/feedback/?owner=adoucett-appgeo&amp;id=cl20gbvlo004k14mwe59hvtou&amp;access_token=pk.eyJ1IjoiYWRvdWNldHQtYXBwZ2VvIiwiYSI6ImNrMmx4ejVvODAwcW4zam95Z3hobzJ4cHMifQ.lkgyRLbdYTV3NYoj3efNQQ" target="_blank" aria-label="Map feedback" rel="noopener nofollow">Improve this map</a></div></div></div></div></div>
+<script>
+
+mapboxgl.accessToken =
+  "pk.eyJ1IjoiYWRvdWNldHQtYXBwZ2VvIiwiYSI6ImNrMmx4ejVvODAwcW4zam95Z3hobzJ4cHMifQ.lkgyRLbdYTV3NYoj3efNQQ";
+const map = new mapboxgl.Map({
+  container: "map",
+  style: "mapbox://styles/adoucett-appgeo/cl20gbvlo004k14mwe59hvtou",
+  zoom: 8,
+  pitch: 0,
+  maxZoom: 13.5,
+  minZoom: 5,
+  center: [-114.18756, 36.4123],
+  interactive: true
+});
+
+// pixels the map pans when the up or down arrow is clicked
+const deltaDistance = 20;
+
+// degrees the map rotates when the left or right arrow is clicked
+const deltaDegrees = 2;
+
+function easing(t) {
+  return t * (2 - t);
+}
+
+map.on("load", () => {
+  map.getCanvas().focus();
+
+  map.getCanvas().addEventListener(
+    "keydown",
+    (e) => {
+      e.preventDefault();
+      if (e.which === 38) {
+        // up
+        map.panBy([0, -deltaDistance], {
+          easing: easing
+        });
+      } else if (e.which === 40) {
+        // down
+        map.panBy([0, deltaDistance], {
+          easing: easing
+        });
+      } else if (e.which === 37) {
+        // left
+        map.easeTo({
+          bearing: map.getBearing() - deltaDegrees,
+          easing: easing
+        });
+      } else if (e.which === 39) {
+        // right
+        map.easeTo({
+          bearing: map.getBearing() + deltaDegrees,
+          easing: easing
+        });
+      }
+    },
+    true
+  );
+
+map.addSource("national_parks", {
+    type: "raster",
+    // use the tiles option to specify a WMS tile source URL
+    // https://docs.mapbox.com/mapbox-gl-js/style-spec/sources/
+    tiles: [
+         "https://giza.appgeo.com/login/path/ladder-picture-page-pioneer/tiles/national_parks/{z}/{x}/{y}.png"
+      
+      ],
+    tileSize: 256
+  });
+  map.addLayer(
+    {
+      id: "national_parks",
+      type: "raster",
+      source: "national_parks",
+      paint: {}
+    },
+    "road-simple"
+  );
+});
+
+map.addControl(new mapboxgl.FullscreenControl());
+
+</script>	
+	
+	
+	
+
+
+</div><style type="text/css">.fusion-body .fusion-builder-column-0{width:100% !important;margin-top : 0px;margin-bottom : 20px;}.fusion-builder-column-0 > .fusion-column-wrapper {padding-top : 0px !important;padding-right : 0px !important;margin-right : 1.92%;padding-bottom : 0px !important;padding-left : 0px !important;margin-left : 1.92%;}@media only screen and (max-width:1024px) {.fusion-body .fusion-builder-column-0{width:100% !important;order : 0;}.fusion-builder-column-0 > .fusion-column-wrapper {margin-right : 1.92%;margin-left : 1.92%;}}@media only screen and (max-width:640px) {.fusion-body .fusion-builder-column-0{width:100% !important;order : 0;}.fusion-builder-column-0 > .fusion-column-wrapper {margin-right : 1.92%;margin-left : 1.92%;}}</style></div></div><style type="text/css">.fusion-body .fusion-flex-container.fusion-builder-row-1{ padding-top : 0px;margin-top : 0px;padding-right : 30px;padding-bottom : 0px;margin-bottom : 0px;padding-left : 30px;}</style></div>
+							</div>
