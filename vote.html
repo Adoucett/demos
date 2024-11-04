@@ -54,6 +54,8 @@
             height: 60px;
             background-color: gray;
             margin: 0;
+            box-sizing: border-box;
+            border: 1px solid rgba(0, 0, 0, 0.1); /* Faint outline */
         }
         .ev-square.democrat {
             background-color: #1f77b4;
@@ -62,7 +64,7 @@
             background-color: #d62728;
         }
         .ev-square.tipping-point {
-            border-left: 4px solid #FFD700;
+            border-left: 2px solid #FFD700; /* Less obtrusive tipping point indicator */
         }
         /* Tooltip styles */
         .custom-tooltip {
@@ -107,6 +109,10 @@
         .tabulator .tabulator-header {
             text-align: center;
         }
+        /* Key States Summary */
+        #key-states-summary {
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -122,6 +128,8 @@
         </div>
         <div id="aggregate-result" class="text-center mt-3" style="font-size: 1.2em; font-weight: bold;"></div>
         <p id="summary" class="text-center mt-3"></p>
+        <!-- Key States Summary -->
+        <div id="key-states-summary" class="text-center"></div>
     </div>
     <!-- Collapsible State Input Table -->
     <div class="container">
@@ -158,6 +166,8 @@
                     <!-- Custom Tooltip -->
                     <div id="chart-tooltip" class="custom-tooltip"></div>
                 </div>
+                <!-- Key States Summary in Chart Tab -->
+                <div id="key-states-chart-summary" class="mt-4"></div>
             </div>
             <!-- Electoral Vote Grid Tab -->
             <div class="tab-pane fade" id="ev-grid-tab-content" role="tabpanel">
@@ -241,7 +251,7 @@
                 columns: [
                     { title: 'State', field: 'State', headerFilter: 'input', sorter: 'string', editable: false },
                     { title: 'Electoral Votes', field: 'Electoral Votes', sorter: 'number', hozAlign: 'center', editable: false },
-                    { title: 'Forecasted Margin', field: 'Forecasted Margin', editor: 'number', editorParams: { step: 0.0001 }, sorter: 'number', hozAlign: 'center', formatter: function(cell) {
+                    { title: 'Forecasted Margin', field: 'Forecasted Margin', editor: 'number', editorParams: { step: 0.0000001 }, sorter: 'number', hozAlign: 'center', formatter: function(cell) {
                         return formatMargin(cell.getValue());
                     } },
                 ],
@@ -270,11 +280,68 @@
                 })
                 .catch(error => console.error('Error loading GeoJSON data:', error));
 
+            // Information control
+            const info = L.control();
+
+            info.onAdd = function (map) {
+                this._div = L.DomUtil.create('div', 'info'); // Create a div with a class "info"
+                this.update();
+                return this._div;
+            };
+
+            // Update the information control
+            info.update = function (props) {
+                if (!props) {
+                    this._div.innerHTML = '<h4>State Win Probability</h4>Hover over a state';
+                    return;
+                }
+
+                const stateName = props.NAME;
+                const demWins = stateWinCounts[stateName]?.D || 0;
+                const repWins = stateWinCounts[stateName]?.R || 0;
+                const totalWins = demWins + repWins;
+
+                let demWinProb = 50;
+                let repWinProb = 50;
+
+                if (totalSimulations > 0 && totalWins > 0) {
+                    demWinProb = (demWins / totalWins) * 100;
+                    repWinProb = (repWins / totalWins) * 100;
+                }
+
+                this._div.innerHTML = '<h4>State Win Probability</h4>' +
+                    '<b>' + stateName + '</b><br />' +
+                    'Democratic Win Probability: ' + demWinProb.toFixed(5) + '%<br />' +
+                    'Republican Win Probability: ' + repWinProb.toFixed(5) + '%';
+            };
+
+            info.addTo(map);
+
+            // Add legend
+            const legend = L.control({position: 'bottomright'});
+
+            legend.onAdd = function (map) {
+                const div = L.DomUtil.create('div', 'legend');
+                const grades = ['Democrat', 'Republican', 'Closely Contended'];
+                const colors = ['#1f77b4', '#d62728', '#FFD700'];
+
+                div.innerHTML += '<h5>Win Probability</h5>'
+                for (let i = 0; i < grades.length; i++) {
+                    div.innerHTML +=
+                        '<i style="background:' + colors[i] + '"></i> ' +
+                        grades[i] + '<br>';
+                }
+
+                return div;
+            };
+
+            legend.addTo(map);
+
             // Invalidate map size when the tab is shown
             document.querySelector('button#map-tab').addEventListener('shown.bs.tab', function (e) {
                 map.invalidateSize();
             });
-        }
+        } // <-- Added missing closing brace for initializeMap()
 
         // Initialize Tab Events
         function initializeTabEvents() {
@@ -295,21 +362,21 @@
             let repWinProb = 50;
 
             if (totalSimulations > 0 && totalWins > 0) {
-                demWinProb = (demWins / totalWins) * 100;
-                repWinProb = (repWins / totalWins) * 100;
+                demWinProb = ((demWins / totalWins) * 100).toFixed(5);
+                repWinProb = ((repWins / totalWins) * 100).toFixed(5);
             }
 
             let fillColor = '#808080'; // Default gray
             let borderColor = 'white';
 
-            if (demWinProb > repWinProb) {
+            if (parseFloat(demWinProb) > parseFloat(repWinProb)) {
                 fillColor = '#1f77b4'; // Blue
-            } else if (repWinProb > demWinProb) {
+            } else if (parseFloat(repWinProb) > parseFloat(demWinProb)) {
                 fillColor = '#d62728'; // Red
             }
 
             // Highlight closely contended states
-            if (Math.abs(demWinProb - repWinProb) <= 5) {
+            if (Math.abs(parseFloat(demWinProb) - parseFloat(repWinProb)) <= 5) {
                 borderColor = '#FFD700'; // Gold
             }
 
@@ -361,63 +428,6 @@
             });
         }
 
-        // Information control
-        const info = L.control();
-
-        info.onAdd = function (map) {
-            this._div = L.DomUtil.create('div', 'info'); // Create a div with a class "info"
-            this.update();
-            return this._div;
-        };
-
-        // Update the information control
-        info.update = function (props) {
-            if (!props) {
-                this._div.innerHTML = '<h4>State Win Probability</h4>Hover over a state';
-                return;
-            }
-
-            const stateName = props.NAME;
-            const demWins = stateWinCounts[stateName]?.D || 0;
-            const repWins = stateWinCounts[stateName]?.R || 0;
-            const totalWins = demWins + repWins;
-
-            let demWinProb = 50;
-            let repWinProb = 50;
-
-            if (totalSimulations > 0 && totalWins > 0) {
-                demWinProb = (demWins / totalWins) * 100;
-                repWinProb = (repWins / totalWins) * 100;
-            }
-
-            this._div.innerHTML = '<h4>State Win Probability</h4>' +
-                '<b>' + stateName + '</b><br />' +
-                'Democratic Win Probability: ' + demWinProb.toFixed(4) + '%<br />' +
-                'Republican Win Probability: ' + repWinProb.toFixed(4) + '%';
-        };
-
-        info.addTo(map);
-
-        // Add legend
-        const legend = L.control({position: 'bottomright'});
-
-        legend.onAdd = function (map) {
-            const div = L.DomUtil.create('div', 'legend');
-            const grades = ['Democrat', 'Republican', 'Closely Contended'];
-            const colors = ['#1f77b4', '#d62728', '#FFD700'];
-
-            div.innerHTML += '<h5>Win Probability</h5>'
-            for (let i = 0; i < grades.length; i++) {
-                div.innerHTML +=
-                    '<i style="background:' + colors[i] + '"></i> ' +
-                    grades[i] + '<br>';
-            }
-
-            return div;
-        };
-
-        legend.addTo(map);
-
         // Main Simulation Function (Monte Carlo Style)
         function runSimulation() {
             const numSimulations = parseInt(document.getElementById('numSimulations').value);
@@ -447,8 +457,8 @@
                 stateWinCounts[state.name] = { D: 0, R: 0 };
             });
 
-            const standardDeviation = 3; // Adjusted standard deviation
-            const scalingFactor = 2; // Adjusted scaling factor
+            const standardDeviation = 3.8; // Standard deviation for the fat-tailed distribution
+            const scalingFactor = 0.5; // Sensitivity for adjusted margin
 
             for (let i = 0; i < numSimulations; i++) {
                 let totalDemEV = 0;
@@ -457,16 +467,20 @@
                 electionData.states.forEach(state => {
                     const margin = parseFloat(state.forecasted_margin);
                     const electoralVotes = state.electoral_votes;
-                    const marginError = randomNormal(0, standardDeviation); // Adding Gaussian randomness
+
+                    // Generate polling error using a Student's t-distribution for fat tails
+                    const marginError = randomStudentT(0, standardDeviation, 5); // degrees of freedom = 5
                     const adjustedMargin = margin + marginError;
 
-                    // Probabilistic outcome based on adjusted margin
-                    const probabilityDemWin = 1 / (1 + Math.exp(-adjustedMargin / scalingFactor));
+                    // Calculate probabilistic outcome based on adjusted margin
+                    const probabilityDemWin = parseFloat((1 / (1 + Math.exp(-adjustedMargin / scalingFactor))).toFixed(10));
 
-                    // Ensure no tie by adjusting probabilities slightly if exactly 50%
-                    let randomValue = Math.random();
-                    while (randomValue === probabilityDemWin) {
-                        randomValue = Math.random();
+                    // Generate a random value for high-precision comparison
+                    let randomValue = parseFloat(Math.random().toFixed(10));
+
+                    // Ensure no tie by adjusting probabilities slightly if necessary
+                    if (randomValue === probabilityDemWin) {
+                        randomValue += (Math.random() - 0.5) * 1e-10;
                     }
 
                     if (randomValue < probabilityDemWin) {
@@ -492,12 +506,31 @@
             displayResults(numSimulations, demWins, repWins, ties, demElectoralVotes);
         }
 
+        // Function to generate random numbers from a Student's t-distribution for "fat tails"
+        function randomStudentT(mean = 0, stdDev = 1, degreesOfFreedom = 5) {
+            // Generate random numbers from Student's t-distribution
+            let x = randomNormal(0, 1);
+            let y = randomChiSquared(degreesOfFreedom);
+            let t = x / Math.sqrt(y / degreesOfFreedom);
+            return mean + stdDev * t;
+        }
+
         // Function to generate random numbers from a normal distribution
         function randomNormal(mean = 0, stdDev = 1) {
-            let u = 0, v = 0;
-            while (u === 0) u = Math.random(); // Converting [0,1) to (0,1)
-            while (v === 0) v = Math.random();
-            return stdDev * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v) + mean;
+            let u1 = 0, u2 = 0;
+            while (u1 === 0) u1 = Math.random(); // Converting [0,1) to (0,1)
+            while (u2 === 0) u2 = Math.random();
+            return stdDev * Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2) + mean;
+        }
+
+        // Function to generate random numbers from a chi-squared distribution
+        function randomChiSquared(df) {
+            let sum = 0;
+            for (let i = 0; i < df; i++) {
+                let z = randomNormal(0, 1);
+                sum += z * z;
+            }
+            return sum;
         }
 
         // Display Results
@@ -528,13 +561,24 @@
 
             document.getElementById('summary').innerHTML = `
                 <strong>Results after ${numSimulations} simulations:</strong><br>
-                Democrat Wins: ${demWins} times (${((demWins / numSimulations) * 100).toFixed(2)}%)<br>
-                Republican Wins: ${repWins} times (${((repWins / numSimulations) * 100).toFixed(2)}%)<br>
-                Ties: ${ties} times (${((ties / numSimulations) * 100).toFixed(2)}%)<br>
-                <strong>Average Democratic Electoral Votes:</strong> ${avgDemEV.toFixed(2)}<br>
-                <strong>Standard Deviation of Democratic Electoral Votes:</strong> ${stdDevDemEV.toFixed(2)}
+                Democrat Wins: ${demWins} times (${((demWins / numSimulations) * 100).toFixed(5)}%)<br>
+                Republican Wins: ${repWins} times (${((repWins / numSimulations) * 100).toFixed(5)}%)<br>
+                Ties: ${ties} times (${((ties / numSimulations) * 100).toFixed(5)}%)<br>
+                <strong>Average Democratic Electoral Votes:</strong> ${avgDemEV.toFixed(5)}<br>
+                <strong>Standard Deviation of Democratic Electoral Votes:</strong> ${stdDevDemEV.toFixed(5)}
             `;
 
+            // Update Key States Summary and other visualizations as needed
+            updateKeyStatesSummary();
+            // Continue with histogram and other result display features
+            updateHistogram(demElectoralVotes);
+            updateElectoralVoteGrid(demElectoralVotes);
+            updateMapVisualization();
+            initSummaryTable();
+        }
+
+        // Add the updateHistogram function
+        function updateHistogram(demElectoralVotes) {
             // Histogram Visualization
             if (resultsChart) {
                 resultsChart.destroy(); // Destroy the existing chart if it exists
@@ -614,15 +658,6 @@
                 data: chartData,
                 options: chartOptions
             });
-
-            // Update Electoral Vote Grid Visualization
-            updateElectoralVoteGrid(demElectoralVotes);
-
-            // Update Map Visualization
-            updateMapVisualization();
-
-            // Update Summary Data Table
-            initSummaryTable();
         }
 
         // Custom Tooltip Handler for Chart.js
@@ -682,8 +717,8 @@
 
             // Update the display of total electoral votes
             evCountDisplay.innerHTML = `
-                <strong>Average Democratic Electoral Votes: ${avgDemEV.toFixed(2)}</strong><br>
-                <strong>Average Republican Electoral Votes: ${avgRepEV.toFixed(2)}</strong>
+                <strong>Average Democratic Electoral Votes: ${avgDemEV.toFixed(5)}</strong><br>
+                <strong>Average Republican Electoral Votes: ${avgRepEV.toFixed(5)}</strong>
             `;
         }
 
@@ -725,7 +760,7 @@
                 });
 
                 // Bind popup with state info
-                layer.bindPopup(`<strong>${stateName}</strong><br>Democratic Win Probability: ${demWinProb.toFixed(4)}%<br>Republican Win Probability: ${repWinProb.toFixed(4)}%`);
+                layer.bindPopup(`<strong>${stateName}</strong><br>Democratic Win Probability: ${demWinProb.toFixed(5)}%<br>Republican Win Probability: ${repWinProb.toFixed(5)}%`);
             });
 
             // Refresh the map
@@ -750,36 +785,18 @@
                 }
 
                 const margin = parseFloat(state.forecasted_margin);
-                const isContended = Math.abs(demWinProb - repWinProb) <= 5;
+                const isContended = Math.abs(demWinProb - repWinProb) <= 10; // Close races threshold
 
                 tableData.push({
                     State: state.name,
                     'Electoral Votes': state.electoral_votes,
-                    'Dem Win %': demWinProb.toFixed(4),
-                    'Rep Win %': repWinProb.toFixed(4),
+                    'Dem Win %': demWinProb.toFixed(5),
+                    'Rep Win %': repWinProb.toFixed(5),
                     'Forecasted Margin': formatMargin(margin),
-                    'Tipping Point': '',
+                    'Dem Wins': stateWinCounts[state.name].D,
+                    'Rep Wins': stateWinCounts[state.name].R,
                     'Contended': isContended
                 });
-            });
-
-            // Determine tipping point state
-            const sortedStates = tableData.slice().sort((a, b) => parseFloat(b['Dem Win %']) - parseFloat(a['Dem Win %']));
-            let cumulativeEV = 0;
-            let tippingPointState = '';
-            for (let row of sortedStates) {
-                cumulativeEV += parseInt(row['Electoral Votes']);
-                if (cumulativeEV >= 270) {
-                    tippingPointState = row.State;
-                    break;
-                }
-            }
-
-            // Highlight tipping point state and contended states
-            tableData.forEach(row => {
-                if (row.State === tippingPointState) {
-                    row['Tipping Point'] = 'Yes';
-                }
             });
 
             // Initialize Tabulator table with color gradation and row highlighting
@@ -799,8 +816,8 @@
                         sorter: 'number', 
                         hozAlign: 'center',
                         formatter: function(cell, formatterParams, onRendered){
-                            const value = cell.getValue();
-                            return `<div style="background-color: rgba(31, 119, 180, ${value / 100}); width: 100%; height: 100%;">${parseFloat(value).toFixed(4)}%</div>`;
+                            const value = parseFloat(cell.getValue());
+                            return `<div style="background-color: rgba(31, 119, 180, ${value / 100}); width: 100%; height: 100%;">${value.toFixed(5)}%</div>`;
                         }
                     },
                     { 
@@ -809,23 +826,62 @@
                         sorter: 'number', 
                         hozAlign: 'center',
                         formatter: function(cell, formatterParams, onRendered){
-                            const value = cell.getValue();
-                            return `<div style="background-color: rgba(214, 39, 40, ${value / 100}); width: 100%; height: 100%;">${parseFloat(value).toFixed(4)}%</div>`;
+                            const value = parseFloat(cell.getValue());
+                            return `<div style="background-color: rgba(214, 39, 40, ${value / 100}); width: 100%; height: 100%;">${value.toFixed(5)}%</div>`;
                         }
                     },
                     { title: 'Forecasted Margin', field: 'Forecasted Margin', hozAlign: 'center' },
-                    { title: 'Tipping Point', field: 'Tipping Point', hozAlign: 'center' }
+                    { title: 'Dem Wins', field: 'Dem Wins', hozAlign: 'center' },
+                    { title: 'Rep Wins', field: 'Rep Wins', hozAlign: 'center' }
                 ],
                 rowFormatter: function(row) {
                     const data = row.getData();
-                    if (data['Tipping Point'] === 'Yes') {
-                        row.getElement().style.backgroundColor = '#FFD700'; // Gold for tipping point
-                    }
                     if (data['Contended']) {
                         row.getElement().style.backgroundColor = '#FFFFE0'; // Light yellow for contended states
                     }
                 }
             });
+        }
+
+        // Update Key States Summary
+        function updateKeyStatesSummary() {
+            const keyStatesSummaryDiv = document.getElementById('key-states-chart-summary');
+            keyStatesSummaryDiv.innerHTML = ''; // Clear previous content
+
+            // Identify close races (difference in win probability <= 10%)
+            const closeStates = electionData.states.filter(state => {
+                const demWins = stateWinCounts[state.name]?.D || 0;
+                const repWins = stateWinCounts[state.name]?.R || 0;
+                const totalWins = demWins + repWins;
+
+                if (totalWins === 0) return false;
+
+                const demWinProb = (demWins / totalWins) * 100;
+                const repWinProb = (repWins / totalWins) * 100;
+
+                return Math.abs(demWinProb - repWinProb) <= 10;
+            });
+
+            if (closeStates.length === 0) {
+                keyStatesSummaryDiv.innerHTML = '<p>No close races identified.</p>';
+                return;
+            }
+
+            // Create a summary table
+            let summaryHTML = '<h4>Key States (Close Races) Summary</h4>';
+            summaryHTML += '<table class="table table-bordered">';
+            summaryHTML += '<thead><tr><th>State</th><th>Democratic Wins</th><th>Republican Wins</th></tr></thead>';
+            summaryHTML += '<tbody>';
+
+            closeStates.forEach(state => {
+                const demWins = stateWinCounts[state.name]?.D || 0;
+                const repWins = stateWinCounts[state.name]?.R || 0;
+
+                summaryHTML += `<tr><td>${state.name}</td><td>${demWins}</td><td>${repWins}</td></tr>`;
+            });
+
+            summaryHTML += '</tbody></table>';
+            keyStatesSummaryDiv.innerHTML = summaryHTML;
         }
     </script>
 </body>
