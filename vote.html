@@ -50,8 +50,8 @@
             overflow-x: auto;
         }
         .ev-square {
-            width: 10px; /* Increased from 5px */
-            height: 30px; /* Increased from 20px */
+            width: 20px;
+            height: 60px;
             background-color: gray;
             margin: 0;
         }
@@ -62,7 +62,7 @@
             background-color: #d62728;
         }
         .ev-square.tipping-point {
-            border-left: 3px solid #FFD700; /* Increased border size */
+            border-left: 4px solid #FFD700;
         }
         /* Tooltip styles */
         .custom-tooltip {
@@ -130,7 +130,7 @@
                 Adjust State Forecasted Margins
             </button>
         </h3>
-        <!-- Changed class to 'collapse' to make it collapsed by default -->
+        <!-- Collapsed by default -->
         <div id="stateInputCollapse" class="collapse">
             <div id="state-input-table"></div>
         </div>
@@ -241,7 +241,7 @@
                 columns: [
                     { title: 'State', field: 'State', headerFilter: 'input', sorter: 'string', editable: false },
                     { title: 'Electoral Votes', field: 'Electoral Votes', sorter: 'number', hozAlign: 'center', editable: false },
-                    { title: 'Forecasted Margin', field: 'Forecasted Margin', editor: 'number', editorParams: { step: 0.1 }, sorter: 'number', hozAlign: 'center', formatter: function(cell) {
+                    { title: 'Forecasted Margin', field: 'Forecasted Margin', editor: 'number', editorParams: { step: 0.0001 }, sorter: 'number', hozAlign: 'center', formatter: function(cell) {
                         return formatMargin(cell.getValue());
                     } },
                 ],
@@ -286,7 +286,7 @@
 
         // Style each state
         function styleFeature(feature) {
-            const stateName = feature.properties.NAME; // Adjusted to use the correct property
+            const stateName = feature.properties.NAME;
             const demWins = stateWinCounts[stateName]?.D || 0;
             const repWins = stateWinCounts[stateName]?.R || 0;
             const totalWins = demWins + repWins;
@@ -392,8 +392,8 @@
 
             this._div.innerHTML = '<h4>State Win Probability</h4>' +
                 '<b>' + stateName + '</b><br />' +
-                'Democratic Win Probability: ' + demWinProb.toFixed(2) + '%<br />' +
-                'Republican Win Probability: ' + repWinProb.toFixed(2) + '%';
+                'Democratic Win Probability: ' + demWinProb.toFixed(4) + '%<br />' +
+                'Republican Win Probability: ' + repWinProb.toFixed(4) + '%';
         };
 
         info.addTo(map);
@@ -447,6 +447,9 @@
                 stateWinCounts[state.name] = { D: 0, R: 0 };
             });
 
+            const standardDeviation = 3; // Adjusted standard deviation
+            const scalingFactor = 2; // Adjusted scaling factor
+
             for (let i = 0; i < numSimulations; i++) {
                 let totalDemEV = 0;
                 let totalRepEV = 0;
@@ -454,12 +457,11 @@
                 electionData.states.forEach(state => {
                     const margin = parseFloat(state.forecasted_margin);
                     const electoralVotes = state.electoral_votes;
-                    const standardDeviation = 3; // Standard deviation for normal distribution
                     const marginError = randomNormal(0, standardDeviation); // Adding Gaussian randomness
                     const adjustedMargin = margin + marginError;
 
                     // Probabilistic outcome based on adjusted margin
-                    const probabilityDemWin = 1 / (1 + Math.exp(-adjustedMargin / 2));
+                    const probabilityDemWin = 1 / (1 + Math.exp(-adjustedMargin / scalingFactor));
 
                     // Ensure no tie by adjusting probabilities slightly if exactly 50%
                     let randomValue = Math.random();
@@ -690,7 +692,7 @@
             if (!geojsonLayer) return;
 
             geojsonLayer.eachLayer(function(layer) {
-                const stateName = layer.feature.properties.NAME; // Adjusted to use the correct property
+                const stateName = layer.feature.properties.NAME;
                 const demWins = stateWinCounts[stateName]?.D || 0;
                 const repWins = stateWinCounts[stateName]?.R || 0;
                 const totalWins = demWins + repWins;
@@ -723,7 +725,7 @@
                 });
 
                 // Bind popup with state info
-                layer.bindPopup(`<strong>${stateName}</strong><br>Democratic Win Probability: ${demWinProb.toFixed(2)}%<br>Republican Win Probability: ${repWinProb.toFixed(2)}%`);
+                layer.bindPopup(`<strong>${stateName}</strong><br>Democratic Win Probability: ${demWinProb.toFixed(4)}%<br>Republican Win Probability: ${repWinProb.toFixed(4)}%`);
             });
 
             // Refresh the map
@@ -753,8 +755,8 @@
                 tableData.push({
                     State: state.name,
                     'Electoral Votes': state.electoral_votes,
-                    'Dem Win %': demWinProb.toFixed(2),
-                    'Rep Win %': repWinProb.toFixed(2),
+                    'Dem Win %': demWinProb.toFixed(4),
+                    'Rep Win %': repWinProb.toFixed(4),
                     'Forecasted Margin': formatMargin(margin),
                     'Tipping Point': '',
                     'Contended': isContended
@@ -798,7 +800,7 @@
                         hozAlign: 'center',
                         formatter: function(cell, formatterParams, onRendered){
                             const value = cell.getValue();
-                            return `<div style="background-color: rgba(31, 119, 180, ${value / 100}); width: 100%; height: 100%;">${value}%</div>`;
+                            return `<div style="background-color: rgba(31, 119, 180, ${value / 100}); width: 100%; height: 100%;">${parseFloat(value).toFixed(4)}%</div>`;
                         }
                     },
                     { 
@@ -808,7 +810,7 @@
                         hozAlign: 'center',
                         formatter: function(cell, formatterParams, onRendered){
                             const value = cell.getValue();
-                            return `<div style="background-color: rgba(214, 39, 40, ${value / 100}); width: 100%; height: 100%;">${value}%</div>`;
+                            return `<div style="background-color: rgba(214, 39, 40, ${value / 100}); width: 100%; height: 100%;">${parseFloat(value).toFixed(4)}%</div>`;
                         }
                     },
                     { title: 'Forecasted Margin', field: 'Forecasted Margin', hozAlign: 'center' },
