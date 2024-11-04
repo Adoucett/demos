@@ -4,18 +4,22 @@
     <meta charset="UTF-8">
     <title>US Presidential Election Simulator</title>
     <!-- External Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.1.0"></script>
-    <script src="https://d3js.org/d3.v6.min.js"></script>
-    <script src="https://d3js.org/topojson.v3.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Bootstrap and Tabulator CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-sA+ePHqk7rgmBOl0sVbtDLj7aGmkgPEFZVb9P++L2q8="
+          crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-o9N1j5g6fXv5YhNvWXgqawIH4iuJZ9KQe2AqYlA2z04="
+            crossorigin=""></script>
+    <!-- Chart.js and Annotation Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.1.0/dist/chartjs-plugin-annotation.min.js"></script>
+    <!-- Tabulator CSS & JS -->
     <link href="https://unpkg.com/tabulator-tables@5.4.3/dist/css/tabulator.min.css" rel="stylesheet">
-    <!-- Bootstrap and Tabulator JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/tabulator-tables@5.4.3/dist/js/tabulator.min.js"></script>
+    <!-- Bootstrap CSS & JS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -38,15 +42,6 @@
         #map {
             width: 100%;
             height: 500px;
-        }
-        .state {
-            stroke: #ffffff;
-            stroke-width: 1;
-            cursor: pointer;
-        }
-        .state:hover {
-            stroke: #000000;
-            stroke-width: 2;
         }
         /* Styles for the electoral vote grid */
         #ev-grid {
@@ -79,6 +74,25 @@
             background: white;
             border: 1px solid #ccc;
             pointer-events: none;
+            border-radius: 4px;
+            box-shadow: 0px 0px 6px #aaa;
+        }
+        /* Legend styles */
+        .legend {
+            background: white;
+            padding: 10px;
+            line-height: 18px;
+            color: #555;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0px 0px 6px #aaa;
+        }
+        .legend i {
+            width: 18px;
+            height: 18px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.7;
         }
     </style>
 </head>
@@ -93,6 +107,7 @@
             <input type="number" id="numSimulations" value="1000" min="1" class="form-control d-inline-block" style="width: 150px;">
             <button class="btn btn-primary" onclick="runSimulation()">Run Simulation</button>
         </div>
+        <div id="aggregate-result" class="text-center mt-3" style="font-size: 1.2em; font-weight: bold;"></div>
         <p id="summary" class="text-center mt-3"></p>
     </div>
     <div id="tabs-container" class="container">
@@ -124,8 +139,14 @@
             </div>
             <!-- Map Visualization Tab -->
             <div class="tab-pane fade" id="map-tab-content" role="tabpanel">
-                <div id="map-container">
-                    <svg id="map"></svg>
+                <div id="map-container" style="position: relative;">
+                    <div id="map"></div>
+                    <div id="map-legend" class="legend" style="position: absolute; bottom: 30px; left: 30px;">
+                        <h5>Win Probability</h5>
+                        <i style="background: #1f77b4"></i> Democrat Win<br>
+                        <i style="background: #d62728"></i> Republican Win<br>
+                        <i style="background: #FFD700; border: 2px solid #FFD700;"></i> Closely Contended
+                    </div>
                 </div>
             </div>
             <!-- Summary Data Tab -->
@@ -137,17 +158,18 @@
 
     <script>
         let electionData;
-        let electoralVotes = {};
         let resultsChart; // Store the chart instance globally
         let stateWinCounts = {};
         let totalSimulations = 0;
+        let map;
+        let geojsonLayer;
 
         // Load JSON Data
         fetch('https://adoucett.github.io/demos/states_data.json')
             .then(response => response.json())
             .then(data => {
                 electionData = data;
-                initMap();
+                initializeMap();
             })
             .catch(error => console.error('Error loading JSON data:', error));
 
@@ -164,6 +186,137 @@
                 return 0;
             }
         }
+
+        // Initialize Leaflet Map
+        function initializeMap() {
+            map = L.map('map').setView([37.8, -96], 4);
+
+            // Add OpenStreetMap tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 6,
+                minZoom: 4,
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+
+            // Add GeoJSON layer for states
+            fetch('https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json')
+                .then(response => response.json())
+                .then(statesData => {
+                    geojsonLayer = L.geoJson(statesData, {
+                        style: styleFeature,
+                        onEachFeature: onEachFeature
+                    }).addTo(map);
+                })
+                .catch(error => console.error('Error loading GeoJSON data:', error));
+        }
+
+        // Style each state
+        function styleFeature(feature) {
+            const stateName = feature.properties.name;
+            const demWinProb = stateWinCounts[stateName]?.DWinProb || 50;
+            const repWinProb = stateWinCounts[stateName]?.RWinProb || 50;
+            let fillColor = '#808080'; // Default gray
+            let borderColor = 'white';
+
+            if (demWinProb > repWinProb) {
+                fillColor = '#1f77b4'; // Blue
+            } else if (repWinProb > demWinProb) {
+                fillColor = '#d62728'; // Red
+            }
+
+            // Highlight closely contended states
+            if (Math.abs(demWinProb - repWinProb) <= 5) {
+                borderColor = '#FFD700'; // Gold
+            }
+
+            return {
+                fillColor: fillColor,
+                weight: 2,
+                opacity: 1,
+                color: borderColor,
+                dashArray: '',
+                fillOpacity: 0.7
+            };
+        }
+
+        // Highlight feature on hover
+        function highlightFeature(e) {
+            const layer = e.target;
+
+            layer.setStyle({
+                weight: 3,
+                color: '#666',
+                dashArray: '',
+                fillOpacity: 0.7
+            });
+
+            if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                layer.bringToFront();
+            }
+
+            info.update(layer.feature.properties);
+        }
+
+        // Reset highlight
+        function resetHighlight(e) {
+            geojsonLayer.resetStyle(e.target);
+            info.update();
+        }
+
+        // Zoom to feature on click
+        function zoomToFeature(e) {
+            map.fitBounds(e.target.getBounds());
+        }
+
+        // Attach events to each feature
+        function onEachFeature(feature, layer) {
+            layer.on({
+                mouseover: highlightFeature,
+                mouseout: resetHighlight,
+                click: zoomToFeature
+            });
+        }
+
+        // Information control
+        const info = L.control();
+
+        info.onAdd = function (map) {
+            this._div = L.DomUtil.create('div', 'info'); // Create a div with a class "info"
+            this.update();
+            return this._div;
+        };
+
+        // Update the information control
+        info.update = function (props) {
+            this._div.innerHTML = '<h4>State Win Probability</h4>' +  (props ?
+                '<b>' + props.name + '</b><br />' + 
+                (stateWinCounts[props.name]?.DWinProb.toFixed(2) || '50.00') + '% Dem Win<br />' +
+                (stateWinCounts[props.name]?.RWinProb.toFixed(2) || '50.00') + '% Rep Win'
+                : 'Hover over a state');
+        };
+
+        info.addTo(map);
+
+        // Add legend
+        const legend = L.control({position: 'bottomright'});
+
+        legend.onAdd = function (map) {
+
+            const div = L.DomUtil.create('div', 'legend');
+            const grades = ['Democrat', 'Republican', 'Closely Contended'];
+            const colors = ['#1f77b4', '#d62728', '#FFD700'];
+
+            div.innerHTML += '<h5>Win Probability</h5>'
+            for (let i = 0; i < grades.length; i++) {
+                div.innerHTML +=
+                    '<i style="background:' + colors[i] + '"></i> ' +
+                    grades[i] + '<br>';
+            }
+
+            return div;
+        };
+
+        legend.addTo(map);
 
         // Main Simulation Function (Monte Carlo Style)
         function runSimulation() {
@@ -233,11 +386,37 @@
 
         // Display Results
         function displayResults(numSimulations, demWins, repWins, ties, demElectoralVotes) {
+            // Calculate average and standard deviation
+            const avgDemEV = demElectoralVotes.reduce((a, b) => a + b, 0) / demElectoralVotes.length;
+            const variance = demElectoralVotes.reduce((a, b) => a + Math.pow(b - avgDemEV, 2), 0) / demElectoralVotes.length;
+            const stdDevDemEV = Math.sqrt(variance);
+
+            // Determine ensemble aggregate winner
+            let aggregateWinner = '';
+            let aggregateColor = '';
+            if (demWins > repWins) {
+                aggregateWinner = 'Democrats Win Majority of Simulations!';
+                aggregateColor = '#1f77b4';
+            } else if (repWins > demWins) {
+                aggregateWinner = 'Republicans Win Majority of Simulations!';
+                aggregateColor = '#d62728';
+            } else {
+                aggregateWinner = 'Tie in Simulations!';
+                aggregateColor = '#808080';
+            }
+
+            // Update summary section
+            document.getElementById('aggregate-result').innerHTML = `
+                <span style="color: ${aggregateColor};">${aggregateWinner}</span>
+            `;
+
             document.getElementById('summary').innerHTML = `
                 <strong>Results after ${numSimulations} simulations:</strong><br>
                 Democrat Wins: ${demWins} times (${((demWins / numSimulations) * 100).toFixed(2)}%)<br>
                 Republican Wins: ${repWins} times (${((repWins / numSimulations) * 100).toFixed(2)}%)<br>
-                Ties: ${ties} times (${((ties / numSimulations) * 100).toFixed(2)}%)
+                Ties: ${ties} times (${((ties / numSimulations) * 100).toFixed(2)}%)<br>
+                <strong>Average Democratic Electoral Votes:</strong> ${avgDemEV.toFixed(2)}<br>
+                <strong>Standard Deviation of Democratic Electoral Votes:</strong> ${stdDevDemEV.toFixed(2)}
             `;
 
             // Histogram Visualization
@@ -277,39 +456,43 @@
                 }]
             };
 
-            resultsChart = new Chart(ctx, {
-                type: 'bar',
-                data: chartData,
-                options: {
-                    responsive: true,
-                    scales: {
-                        x: {
-                            title: { display: true, text: 'Democratic Electoral Votes' }
-                        },
-                        y: {
-                            title: { display: true, text: 'Frequency' }
-                        }
+            // Add annotation plugin for 270 EV line
+            const chartOptions = {
+                responsive: true,
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Democratic Electoral Votes' }
                     },
-                    plugins: {
-                        legend: { display: false },
-                        annotation: {
-                            annotations: {
-                                line1: {
-                                    type: 'line',
-                                    xMin: 270 / binSize - 0.5,
-                                    xMax: 270 / binSize - 0.5,
-                                    borderColor: 'green',
-                                    borderWidth: 2,
-                                    label: {
-                                        content: '270 EV',
-                                        enabled: true,
-                                        position: 'end'
-                                    }
+                    y: {
+                        title: { display: true, text: 'Frequency' }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    annotation: {
+                        annotations: {
+                            line1: {
+                                type: 'line',
+                                xMin: '270-0',
+                                xMax: '270-0',
+                                borderColor: 'green',
+                                borderWidth: 2,
+                                label: {
+                                    enabled: true,
+                                    content: '270 EV',
+                                    position: 'end'
                                 }
                             }
                         }
                     }
                 }
+            };
+
+            // Initialize Chart.js histogram
+            resultsChart = new Chart(ctx, {
+                type: 'bar',
+                data: chartData,
+                options: chartOptions
             });
 
             // Update Electoral Vote Grid Visualization
@@ -327,8 +510,12 @@
             const evGridContainer = document.getElementById('ev-grid');
             evGridContainer.innerHTML = ''; // Clear previous content
 
+            // Calculate total electoral votes won by Democrats on average
+            const totals = stateWinCountsTotal();
+            const totalDemEVs = Math.round(totals.D);
+            const totalRepEVs = Math.round(totals.R);
+
             // Create 538 squares
-            const totalDemEVs = Math.round((stateWinCountsTotal().D / totalSimulations));
             for (let i = 1; i <= 538; i++) {
                 const square = document.createElement('div');
                 square.classList.add('ev-square');
@@ -363,135 +550,40 @@
             return { D: totalDemEVs, R: totalRepEVs };
         }
 
-        // D3.js Map Initialization and Update
-        let usMapData;
-        function initMap() {
-            Promise.all([
-                d3.json('https://d3js.org/us-10m.v2.json'),
-                fetch('https://adoucett.github.io/demos/states_data.json').then(res => res.json())
-            ]).then(([us, stateData]) => {
-                usMapData = { us, stateData };
-                drawMap(us, stateData);
-            });
-        }
-
-        function drawMap(us, stateData) {
-            const width = document.getElementById('map').clientWidth;
-            const height = document.getElementById('map').clientHeight;
-            const svg = d3.select('#map').attr('width', width).attr('height', height);
-
-            const projection = d3.geoAlbersUsa().scale(1000).translate([width / 2, height / 2]);
-            const path = d3.geoPath().projection(projection);
-
-            const stateMargins = {};
-            stateData.states.forEach(state => {
-                stateMargins[state.name] = parseMargin(state.forecasted_margin);
-            });
-
-            const stateFeatures = topojson.feature(us, us.objects.states).features;
-
-            svg.append('g')
-                .selectAll('path')
-                .data(stateFeatures)
-                .enter().append('path')
-                .attr('class', 'state')
-                .attr('d', path)
-                .attr('fill', d => {
-                    const stateName = getStateNameById(d.id);
-                    const demWins = stateWinCounts[stateName]?.D || 0;
-                    const totalWins = (stateWinCounts[stateName]?.D || 0) + (stateWinCounts[stateName]?.R || 0);
-                    const demWinProb = totalWins ? demWins / totalWins : 0.5;
-                    return d3.interpolateRdBu(1 - demWinProb);
-                })
-                .on('mouseover', function (event, d) {
-                    d3.select(this).attr('stroke-width', 2);
-                    const stateName = getStateNameById(d.id);
-                    const demWinPercent = ((stateWinCounts[stateName]?.D || 0) / totalSimulations * 100).toFixed(2);
-                    const repWinPercent = ((stateWinCounts[stateName]?.R || 0) / totalSimulations * 100).toFixed(2);
-                    showTooltip(event.pageX, event.pageY, `${stateName}<br>Dem Win %: ${demWinPercent}%<br>Rep Win %: ${repWinPercent}%`);
-                })
-                .on('mouseout', function (event, d) {
-                    d3.select(this).attr('stroke-width', 1);
-                    hideTooltip();
-                });
-        }
-
+        // Leaflet Map Visualization
         function updateMapVisualization() {
-            const { us, stateData } = usMapData;
-            d3.select('#map').selectAll('*').remove();
-            drawMap(us, stateData);
-        }
+            if (!geojsonLayer) return;
 
-        function showTooltip(x, y, content) {
-            let tooltip = d3.select('.tooltip');
-            if (tooltip.empty()) {
-                tooltip = d3.select('body').append('div').attr('class', 'tooltip');
-            }
-            tooltip.html(content)
-                .style('left', (x + 15) + 'px')
-                .style('top', (y - 28) + 'px')
-                .style('opacity', 1);
-        }
+            geojsonLayer.eachLayer(function(layer) {
+                const stateName = layer.feature.properties.name;
+                const demWinProb = ((stateWinCounts[stateName]?.D || 0) / totalSimulations * 100) || 50;
+                const repWinProb = ((stateWinCounts[stateName]?.R || 0) / totalSimulations * 100) || 50;
 
-        function hideTooltip() {
-            d3.select('.tooltip').style('opacity', 0);
-        }
+                let fillColor = '#808080'; // Default gray
+                let borderColor = 'white';
 
-        function getStateNameById(id) {
-            const stateIdMap = {
-                1: 'Alabama',
-                2: 'Alaska',
-                4: 'Arizona',
-                5: 'Arkansas',
-                6: 'California',
-                8: 'Colorado',
-                9: 'Connecticut',
-                10: 'Delaware',
-                11: 'District of Columbia',
-                12: 'Florida',
-                13: 'Georgia',
-                15: 'Hawaii',
-                16: 'Idaho',
-                17: 'Illinois',
-                18: 'Indiana',
-                19: 'Iowa',
-                20: 'Kansas',
-                21: 'Kentucky',
-                22: 'Louisiana',
-                23: 'Maine',
-                24: 'Maryland',
-                25: 'Massachusetts',
-                26: 'Michigan',
-                27: 'Minnesota',
-                28: 'Mississippi',
-                29: 'Missouri',
-                30: 'Montana',
-                31: 'Nebraska',
-                32: 'Nevada',
-                33: 'New Hampshire',
-                34: 'New Jersey',
-                35: 'New Mexico',
-                36: 'New York',
-                37: 'North Carolina',
-                38: 'North Dakota',
-                39: 'Ohio',
-                40: 'Oklahoma',
-                41: 'Oregon',
-                42: 'Pennsylvania',
-                44: 'Rhode Island',
-                45: 'South Carolina',
-                46: 'South Dakota',
-                47: 'Tennessee',
-                48: 'Texas',
-                49: 'Utah',
-                50: 'Vermont',
-                51: 'Virginia',
-                53: 'Washington',
-                54: 'West Virginia',
-                55: 'Wisconsin',
-                56: 'Wyoming'
-            };
-            return stateIdMap[id];
+                if (demWinProb > repWinProb) {
+                    fillColor = '#1f77b4'; // Blue
+                } else if (repWinProb > demWinProb) {
+                    fillColor = '#d62728'; // Red
+                }
+
+                // Highlight closely contended states
+                if (Math.abs(demWinProb - repWinProb) <= 5) {
+                    borderColor = '#FFD700'; // Gold
+                }
+
+                layer.setStyle({
+                    fillColor: fillColor,
+                    color: borderColor
+                });
+
+                // Bind popup with state info
+                layer.bindPopup(`<strong>${stateName}</strong><br>Democratic Win Probability: ${demWinProb.toFixed(2)}%<br>Republican Win Probability: ${repWinProb.toFixed(2)}%`);
+            });
+
+            // Refresh the map
+            map.invalidateSize();
         }
 
         // Initialize Summary Data Table
@@ -504,13 +596,17 @@
                 const totalWins = demWins + repWins;
                 const demWinProb = ((demWins / totalSimulations) * 100).toFixed(2);
                 const repWinProb = ((repWins / totalSimulations) * 100).toFixed(2);
+                const margin = parseMargin(state.forecasted_margin);
+                const isContended = Math.abs(demWinProb - repWinProb) <= 5;
 
                 tableData.push({
                     State: state.name,
                     'Electoral Votes': state.electoral_votes,
                     'Dem Win %': demWinProb,
                     'Rep Win %': repWinProb,
-                    'Forecasted Margin': state.forecasted_margin
+                    'Forecasted Margin': state.forecasted_margin,
+                    'Tipping Point': '',
+                    'Contended': isContended
                 });
             });
 
@@ -526,27 +622,56 @@
                 }
             }
 
-            // Highlight tipping point state
+            // Highlight tipping point state and contended states
             tableData.forEach(row => {
                 if (row.State === tippingPointState) {
                     row['Tipping Point'] = 'Yes';
-                } else {
-                    row['Tipping Point'] = '';
                 }
             });
 
+            // Initialize Tabulator table with color gradation and row highlighting
             new Tabulator('#summary-table-container', {
                 data: tableData,
                 layout: 'fitColumns',
+                movableColumns: true,
+                initialSort: [
+                    { column: 'Dem Win %', dir: 'desc' },
+                ],
                 columns: [
                     { title: 'State', field: 'State', headerFilter: 'input', sorter: 'string' },
                     { title: 'Electoral Votes', field: 'Electoral Votes', sorter: 'number', hozAlign: 'center' },
-                    { title: 'Dem Win %', field: 'Dem Win %', sorter: 'number', hozAlign: 'center' },
-                    { title: 'Rep Win %', field: 'Rep Win %', sorter: 'number', hozAlign: 'center' },
+                    { 
+                        title: 'Dem Win %', 
+                        field: 'Dem Win %', 
+                        sorter: 'number', 
+                        hozAlign: 'center',
+                        formatter: function(cell, formatterParams, onRendered){
+                            const value = cell.getValue();
+                            return `<div style="background-color: rgba(31, 119, 180, ${value / 100}); width: 100%; height: 100%;">${value}%</div>`;
+                        }
+                    },
+                    { 
+                        title: 'Rep Win %', 
+                        field: 'Rep Win %', 
+                        sorter: 'number', 
+                        hozAlign: 'center',
+                        formatter: function(cell, formatterParams, onRendered){
+                            const value = cell.getValue();
+                            return `<div style="background-color: rgba(214, 39, 40, ${value / 100}); width: 100%; height: 100%;">${value}%</div>`;
+                        }
+                    },
                     { title: 'Forecasted Margin', field: 'Forecasted Margin', hozAlign: 'center' },
                     { title: 'Tipping Point', field: 'Tipping Point', hozAlign: 'center' }
                 ],
-                initialSort: [{ column: 'Dem Win %', dir: 'desc' }],
+                rowFormatter: function(row) {
+                    const data = row.getData();
+                    if (data['Tipping Point'] === 'Yes') {
+                        row.getElement().style.backgroundColor = '#FFD700'; // Gold for tipping point
+                    }
+                    if (data['Contended']) {
+                        row.getElement().style.backgroundColor = '#FFFFE0'; // Light yellow for contended states
+                    }
+                }
             });
         }
     </script>
