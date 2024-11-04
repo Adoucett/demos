@@ -136,6 +136,7 @@
             <div class="tab-pane fade" id="ev-grid-tab-content" role="tabpanel">
                 <div id="ev-grid"></div>
                 <p class="text-center">Each square represents one electoral vote. The gold border indicates the tipping point.</p>
+                <div id="ev-count" class="text-center mt-2"></div>
             </div>
             <!-- Map Visualization Tab -->
             <div class="tab-pane fade" id="map-tab-content" role="tabpanel">
@@ -301,7 +302,6 @@
         const legend = L.control({position: 'bottomright'});
 
         legend.onAdd = function (map) {
-
             const div = L.DomUtil.create('div', 'legend');
             const grades = ['Democrat', 'Republican', 'Closely Contended'];
             const colors = ['#1f77b4', '#d62728', '#FFD700'];
@@ -509,6 +509,8 @@
         function updateElectoralVoteGrid() {
             const evGridContainer = document.getElementById('ev-grid');
             evGridContainer.innerHTML = ''; // Clear previous content
+            const evCountDisplay = document.getElementById('ev-count');
+            evCountDisplay.innerHTML = ''; // Clear previous count
 
             // Calculate total electoral votes won by Democrats on average
             const totals = stateWinCountsTotal();
@@ -532,6 +534,12 @@
 
                 evGridContainer.appendChild(square);
             }
+
+            // Update the display of total electoral votes
+            evCountDisplay.innerHTML = `
+                <strong>Democratic Electoral Votes: ${totalDemEVs}</strong><br>
+                <strong>Republican Electoral Votes: ${totalRepEVs}</strong>
+            `;
         }
 
         function stateWinCountsTotal() {
