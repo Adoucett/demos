@@ -42,31 +42,18 @@
         /* Styles for the electoral vote grid */
         #ev-grid {
             display: flex;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
             justify-content: center;
+            align-items: center;
             margin: 0 auto;
-        }
-        .state-group {
-            display: flex;
-            flex-wrap: wrap;
-            margin: 2px;
-            border: 1px solid #ccc;
-            padding: 2px;
-            border-radius: 4px;
-            width: fit-content;
-        }
-        .state-label {
             width: 100%;
-            text-align: center;
-            font-size: 10px;
-            margin-bottom: 2px;
-            font-weight: bold;
+            overflow-x: auto;
         }
         .ev-square {
-            width: 10px;
-            height: 10px;
+            width: 10px; /* Increased from 5px */
+            height: 30px; /* Increased from 20px */
             background-color: gray;
-            margin: 1px;
+            margin: 0;
         }
         .ev-square.democrat {
             background-color: #1f77b4;
@@ -75,7 +62,7 @@
             background-color: #d62728;
         }
         .ev-square.tipping-point {
-            border: 2px solid #FFD700;
+            border-left: 3px solid #FFD700; /* Increased border size */
         }
         /* Tooltip styles */
         .custom-tooltip {
@@ -108,6 +95,18 @@
             margin-right: 8px;
             opacity: 0.7;
         }
+        /* State Input Table */
+        #state-input-table {
+            margin-bottom: 20px;
+        }
+        .tabulator .tabulator-cell {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .tabulator .tabulator-header {
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -123,6 +122,18 @@
         </div>
         <div id="aggregate-result" class="text-center mt-3" style="font-size: 1.2em; font-weight: bold;"></div>
         <p id="summary" class="text-center mt-3"></p>
+    </div>
+    <!-- Collapsible State Input Table -->
+    <div class="container">
+        <h3 class="text-center">
+            <button class="btn btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#stateInputCollapse" aria-expanded="false" aria-controls="stateInputCollapse">
+                Adjust State Forecasted Margins
+            </button>
+        </h3>
+        <!-- Changed class to 'collapse' to make it collapsed by default -->
+        <div id="stateInputCollapse" class="collapse">
+            <div id="state-input-table"></div>
+        </div>
     </div>
     <div id="tabs-container" class="container">
         <ul class="nav nav-tabs" id="resultsTabs" role="tablist">
@@ -151,7 +162,7 @@
             <!-- Electoral Vote Grid Tab -->
             <div class="tab-pane fade" id="ev-grid-tab-content" role="tabpanel">
                 <div id="ev-grid"></div>
-                <p class="text-center">Each square represents one electoral vote. The gold border indicates the tipping point.</p>
+                <p class="text-center">Each square represents one electoral vote. The gold line indicates the 270 EV mark.</p>
                 <div id="ev-count" class="text-center mt-2"></div>
             </div>
             <!-- Map Visualization Tab -->
@@ -180,13 +191,16 @@
         let totalSimulations = 0;
         let map;
         let geojsonLayer;
+        let stateInputTable; // Tabulator instance for state inputs
 
         // Load JSON Data
         fetch('https://adoucett.github.io/demos/states_data.json')
             .then(response => response.json())
             .then(data => {
                 electionData = data;
+                initializeStateInputTable();
                 initializeMap();
+                initializeTabEvents();
             })
             .catch(error => console.error('Error loading JSON data:', error));
 
@@ -202,6 +216,36 @@
             } else {
                 return 0;
             }
+        }
+
+        function formatMargin(value) {
+            if (value >= 0) {
+                return 'D+' + value;
+            } else {
+                return 'R+' + Math.abs(value);
+            }
+        }
+
+        // Initialize State Input Table
+        function initializeStateInputTable() {
+            const tableData = electionData.states.map(state => ({
+                State: state.name,
+                'Electoral Votes': state.electoral_votes,
+                'Forecasted Margin': parseMargin(state.forecasted_margin),
+            }));
+
+            stateInputTable = new Tabulator('#state-input-table', {
+                data: tableData,
+                layout: 'fitColumns',
+                movableColumns: true,
+                columns: [
+                    { title: 'State', field: 'State', headerFilter: 'input', sorter: 'string', editable: false },
+                    { title: 'Electoral Votes', field: 'Electoral Votes', sorter: 'number', hozAlign: 'center', editable: false },
+                    { title: 'Forecasted Margin', field: 'Forecasted Margin', editor: 'number', editorParams: { step: 0.1 }, sorter: 'number', hozAlign: 'center', formatter: function(cell) {
+                        return formatMargin(cell.getValue());
+                    } },
+                ],
+            });
         }
 
         // Initialize Leaflet Map
@@ -225,13 +269,36 @@
                     }).addTo(map);
                 })
                 .catch(error => console.error('Error loading GeoJSON data:', error));
+
+            // Invalidate map size when the tab is shown
+            document.querySelector('button#map-tab').addEventListener('shown.bs.tab', function (e) {
+                map.invalidateSize();
+            });
+        }
+
+        // Initialize Tab Events
+        function initializeTabEvents() {
+            // Invalidate map size when the tab is shown
+            document.querySelector('button#map-tab').addEventListener('shown.bs.tab', function (e) {
+                map.invalidateSize();
+            });
         }
 
         // Style each state
         function styleFeature(feature) {
             const stateName = feature.properties.NAME; // Adjusted to use the correct property
-            const demWinProb = stateWinCounts[stateName]?.DWinProb || 50;
-            const repWinProb = stateWinCounts[stateName]?.RWinProb || 50;
+            const demWins = stateWinCounts[stateName]?.D || 0;
+            const repWins = stateWinCounts[stateName]?.R || 0;
+            const totalWins = demWins + repWins;
+
+            let demWinProb = 50;
+            let repWinProb = 50;
+
+            if (totalSimulations > 0 && totalWins > 0) {
+                demWinProb = (demWins / totalWins) * 100;
+                repWinProb = (repWins / totalWins) * 100;
+            }
+
             let fillColor = '#808080'; // Default gray
             let borderColor = 'white';
 
@@ -305,11 +372,28 @@
 
         // Update the information control
         info.update = function (props) {
-            this._div.innerHTML = '<h4>State Win Probability</h4>' +  (props ?
-                '<b>' + props.NAME + '</b><br />' +  // Changed to NAME
-                (stateWinCounts[props.NAME]?.DWinProb.toFixed(2) || '50.00') + '% Dem Win<br />' +
-                (stateWinCounts[props.NAME]?.RWinProb.toFixed(2) || '50.00') + '% Rep Win'
-                : 'Hover over a state');
+            if (!props) {
+                this._div.innerHTML = '<h4>State Win Probability</h4>Hover over a state';
+                return;
+            }
+
+            const stateName = props.NAME;
+            const demWins = stateWinCounts[stateName]?.D || 0;
+            const repWins = stateWinCounts[stateName]?.R || 0;
+            const totalWins = demWins + repWins;
+
+            let demWinProb = 50;
+            let repWinProb = 50;
+
+            if (totalSimulations > 0 && totalWins > 0) {
+                demWinProb = (demWins / totalWins) * 100;
+                repWinProb = (repWins / totalWins) * 100;
+            }
+
+            this._div.innerHTML = '<h4>State Win Probability</h4>' +
+                '<b>' + stateName + '</b><br />' +
+                'Democratic Win Probability: ' + demWinProb.toFixed(2) + '%<br />' +
+                'Republican Win Probability: ' + repWinProb.toFixed(2) + '%';
         };
 
         info.addTo(map);
@@ -342,11 +426,21 @@
                 return;
             }
 
+            // Update electionData with new margins from the input table
+            const updatedMargins = stateInputTable.getData();
+            updatedMargins.forEach(item => {
+                const state = electionData.states.find(s => s.name === item.State);
+                if (state) {
+                    state.forecasted_margin = item['Forecasted Margin'];
+                }
+            });
+
             let demWins = 0;
             let repWins = 0;
             let ties = 0;
             let demElectoralVotes = [];
             stateWinCounts = {};
+            totalSimulations = numSimulations;
 
             // Initialize stateWinCounts
             electionData.states.forEach(state => {
@@ -358,7 +452,7 @@
                 let totalRepEV = 0;
 
                 electionData.states.forEach(state => {
-                    const margin = parseMargin(state.forecasted_margin);
+                    const margin = parseFloat(state.forecasted_margin);
                     const electoralVotes = state.electoral_votes;
                     const standardDeviation = 3; // Standard deviation for normal distribution
                     const marginError = randomNormal(0, standardDeviation); // Adding Gaussian randomness
@@ -366,7 +460,12 @@
 
                     // Probabilistic outcome based on adjusted margin
                     const probabilityDemWin = 1 / (1 + Math.exp(-adjustedMargin / 2));
-                    const randomValue = Math.random();
+
+                    // Ensure no tie by adjusting probabilities slightly if exactly 50%
+                    let randomValue = Math.random();
+                    while (randomValue === probabilityDemWin) {
+                        randomValue = Math.random();
+                    }
 
                     if (randomValue < probabilityDemWin) {
                         totalDemEV += electoralVotes;
@@ -388,7 +487,6 @@
                 demElectoralVotes.push(totalDemEV);
             }
 
-            totalSimulations = numSimulations;
             displayResults(numSimulations, demWins, repWins, ties, demElectoralVotes);
         }
 
@@ -516,7 +614,7 @@
             });
 
             // Update Electoral Vote Grid Visualization
-            updateElectoralVoteGrid();
+            updateElectoralVoteGrid(demElectoralVotes);
 
             // Update Map Visualization
             updateMapVisualization();
@@ -552,99 +650,39 @@
         }
 
         // Electoral Vote Grid Visualization
-        function updateElectoralVoteGrid() {
+        function updateElectoralVoteGrid(demElectoralVotes) {
             const evGridContainer = document.getElementById('ev-grid');
             evGridContainer.innerHTML = ''; // Clear previous content
             const evCountDisplay = document.getElementById('ev-count');
             evCountDisplay.innerHTML = ''; // Clear previous count
 
-            // Calculate total electoral votes won by Democrats on average
-            const totals = stateWinCountsTotal();
-            const totalDemEVs = Math.round(totals.D);
-            const totalRepEVs = Math.round(totals.R);
+            // Calculate average Dem EV
+            const avgDemEV = demElectoralVotes.reduce((a, b) => a + b, 0) / demElectoralVotes.length;
+            const avgRepEV = 538 - avgDemEV;
 
-            // Sort states alphabetically for consistent display
-            const sortedStates = electionData.states.slice().sort((a, b) => a.name.localeCompare(b.name));
+            // Create 538 squares
+            for (let i = 1; i <= 538; i++) {
+                const square = document.createElement('div');
+                square.classList.add('ev-square');
 
-            // Create state groups
-            sortedStates.forEach(state => {
-                const stateGroup = document.createElement('div');
-                stateGroup.classList.add('state-group');
-
-                // State label
-                const stateLabel = document.createElement('div');
-                stateLabel.classList.add('state-label');
-                stateLabel.innerText = state.name;
-                stateGroup.appendChild(stateLabel);
-
-                // Create squares based on state electoral votes
-                for (let i = 0; i < state.electoral_votes; i++) {
-                    const square = document.createElement('div');
-                    square.classList.add('ev-square');
-
-                    // Determine if the state is more likely Democrat or Republican
-                    const demProb = stateWinCounts[state.name]?.D / totalSimulations;
-                    const repProb = stateWinCounts[state.name]?.R / totalSimulations;
-
-                    if (demProb > repProb) {
-                        square.classList.add('democrat');
-                    } else {
-                        square.classList.add('republican');
-                    }
-
-                    // Add tipping point class if this square crosses the 270 threshold
-                    // Calculate cumulative EVs up to this state
-                    const cumulativeEV = calculateCumulativeEV(state.name);
-                    if (cumulativeEV === 270) {
-                        square.classList.add('tipping-point');
-                    }
-
-                    stateGroup.appendChild(square);
+                if (i <= avgDemEV) {
+                    square.classList.add('democrat');
+                } else {
+                    square.classList.add('republican');
                 }
 
-                evGridContainer.appendChild(stateGroup);
-            });
+                if (i === 270) {
+                    square.classList.add('tipping-point');
+                }
+
+                evGridContainer.appendChild(square);
+            }
 
             // Update the display of total electoral votes
             evCountDisplay.innerHTML = `
-                <strong>Democratic Electoral Votes: ${totalDemEVs}</strong><br>
-                <strong>Republican Electoral Votes: ${totalRepEVs}</strong>
+                <strong>Average Democratic Electoral Votes: ${avgDemEV.toFixed(2)}</strong><br>
+                <strong>Average Republican Electoral Votes: ${avgRepEV.toFixed(2)}</strong>
             `;
-        }
-
-        // Helper function to calculate cumulative EVs up to a state
-        function calculateCumulativeEV(stateName) {
-            let cumulative = 0;
-            for (let state of electionData.states) {
-                if (state.name === stateName) {
-                    cumulative += state.electoral_votes;
-                    break;
-                }
-                const demProb = stateWinCounts[state.name]?.D / totalSimulations;
-                const repProb = stateWinCounts[state.name]?.R / totalSimulations;
-                if (demProb > repProb) {
-                    cumulative += state.electoral_votes;
-                } else {
-                    cumulative += state.electoral_votes;
-                }
-            }
-            return cumulative;
-        }
-
-        function stateWinCountsTotal() {
-            let totalDemEVs = 0;
-            let totalRepEVs = 0;
-
-            electionData.states.forEach(state => {
-                const demWins = stateWinCounts[state.name].D;
-                const repWins = stateWinCounts[state.name].R;
-                const demProb = demWins / totalSimulations;
-                const repProb = repWins / totalSimulations;
-                totalDemEVs += state.electoral_votes * demProb;
-                totalRepEVs += state.electoral_votes * repProb;
-            });
-
-            return { D: totalDemEVs, R: totalRepEVs };
         }
 
         // Leaflet Map Visualization
@@ -653,8 +691,17 @@
 
             geojsonLayer.eachLayer(function(layer) {
                 const stateName = layer.feature.properties.NAME; // Adjusted to use the correct property
-                const demWinProb = ((stateWinCounts[stateName]?.D || 0) / totalSimulations * 100) || 50;
-                const repWinProb = ((stateWinCounts[stateName]?.R || 0) / totalSimulations * 100) || 50;
+                const demWins = stateWinCounts[stateName]?.D || 0;
+                const repWins = stateWinCounts[stateName]?.R || 0;
+                const totalWins = demWins + repWins;
+
+                let demWinProb = 50;
+                let repWinProb = 50;
+
+                if (totalSimulations > 0 && totalWins > 0) {
+                    demWinProb = (demWins / totalWins) * 100;
+                    repWinProb = (repWins / totalWins) * 100;
+                }
 
                 let fillColor = '#808080'; // Default gray
                 let borderColor = 'white';
@@ -688,20 +735,27 @@
             const tableData = [];
 
             electionData.states.forEach(state => {
-                const demWins = stateWinCounts[state.name].D || 0;
-                const repWins = stateWinCounts[state.name].R || 0;
+                const demWins = stateWinCounts[state.name]?.D || 0;
+                const repWins = stateWinCounts[state.name]?.R || 0;
                 const totalWins = demWins + repWins;
-                const demWinProb = ((demWins / totalSimulations) * 100).toFixed(2);
-                const repWinProb = ((repWins / totalSimulations) * 100).toFixed(2);
-                const margin = parseMargin(state.forecasted_margin);
+
+                let demWinProb = 50;
+                let repWinProb = 50;
+
+                if (totalSimulations > 0 && totalWins > 0) {
+                    demWinProb = (demWins / totalWins) * 100;
+                    repWinProb = (repWins / totalWins) * 100;
+                }
+
+                const margin = parseFloat(state.forecasted_margin);
                 const isContended = Math.abs(demWinProb - repWinProb) <= 5;
 
                 tableData.push({
                     State: state.name,
                     'Electoral Votes': state.electoral_votes,
-                    'Dem Win %': demWinProb,
-                    'Rep Win %': repWinProb,
-                    'Forecasted Margin': state.forecasted_margin,
+                    'Dem Win %': demWinProb.toFixed(2),
+                    'Rep Win %': repWinProb.toFixed(2),
+                    'Forecasted Margin': formatMargin(margin),
                     'Tipping Point': '',
                     'Contended': isContended
                 });
