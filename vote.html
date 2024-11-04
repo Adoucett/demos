@@ -41,16 +41,32 @@
         }
         /* Styles for the electoral vote grid */
         #ev-grid {
-            display: grid;
-            grid-template-columns: repeat(27, 15px);
-            grid-gap: 2px;
+            display: flex;
+            flex-wrap: wrap;
             justify-content: center;
             margin: 0 auto;
         }
+        .state-group {
+            display: flex;
+            flex-wrap: wrap;
+            margin: 2px;
+            border: 1px solid #ccc;
+            padding: 2px;
+            border-radius: 4px;
+            width: fit-content;
+        }
+        .state-label {
+            width: 100%;
+            text-align: center;
+            font-size: 10px;
+            margin-bottom: 2px;
+            font-weight: bold;
+        }
         .ev-square {
-            width: 15px;
-            height: 15px;
+            width: 10px;
+            height: 10px;
             background-color: gray;
+            margin: 1px;
         }
         .ev-square.democrat {
             background-color: #1f77b4;
@@ -62,7 +78,7 @@
             border: 2px solid #FFD700;
         }
         /* Tooltip styles */
-        .tooltip {
+        .custom-tooltip {
             position: absolute;
             text-align: center;
             padding: 6px;
@@ -72,6 +88,8 @@
             pointer-events: none;
             border-radius: 4px;
             box-shadow: 0px 0px 6px #aaa;
+            display: none;
+            z-index: 1000;
         }
         /* Legend styles */
         .legend {
@@ -124,8 +142,10 @@
         <div class="tab-content">
             <!-- Chart Visualization Tab -->
             <div class="tab-pane fade show active" id="chart" role="tabpanel">
-                <div id="chart-container">
+                <div id="chart-container" style="position: relative;">
                     <canvas id="resultsChart"></canvas>
+                    <!-- Custom Tooltip -->
+                    <div id="chart-tooltip" class="custom-tooltip"></div>
                 </div>
             </div>
             <!-- Electoral Vote Grid Tab -->
@@ -469,8 +489,8 @@
                         annotations: {
                             line1: {
                                 type: 'line',
-                                xMin: '270-0',
-                                xMax: '270-0',
+                                xMin: '270-274', // Fixed to the correct category label
+                                xMax: '270-274', // Fixed to the correct category label
                                 borderColor: 'green',
                                 borderWidth: 2,
                                 label: {
@@ -480,6 +500,10 @@
                                 }
                             }
                         }
+                    },
+                    tooltip: {
+                        enabled: false, // Disable the default tooltip
+                        external: externalTooltipHandler // Enable custom tooltip
                     }
                 }
             };
@@ -501,6 +525,32 @@
             initSummaryTable();
         }
 
+        // Custom Tooltip Handler for Chart.js
+        function externalTooltipHandler(context) {
+            // Tooltip Element
+            let tooltipEl = document.getElementById('chart-tooltip');
+
+            // Hide if no tooltip
+            const tooltipModel = context.tooltip;
+            if (tooltipModel.opacity === 0) {
+                tooltipEl.style.display = 'none';
+                return;
+            }
+
+            // Set Text
+            if (tooltipModel.body) {
+                const bodyLines = tooltipModel.body.map(b => b.lines);
+                tooltipEl.innerHTML = bodyLines.join('<br>');
+            }
+
+            // Set Position
+            const position = context.chart.canvas.getBoundingClientRect();
+
+            tooltipEl.style.left = position.left + window.pageXOffset + tooltipModel.caretX + 'px';
+            tooltipEl.style.top = position.top + window.pageYOffset + tooltipModel.caretY + 'px';
+            tooltipEl.style.display = 'block';
+        }
+
         // Electoral Vote Grid Visualization
         function updateElectoralVoteGrid() {
             const evGridContainer = document.getElementById('ev-grid');
@@ -513,29 +563,72 @@
             const totalDemEVs = Math.round(totals.D);
             const totalRepEVs = Math.round(totals.R);
 
-            // Create 538 squares
-            for (let i = 1; i <= 538; i++) {
-                const square = document.createElement('div');
-                square.classList.add('ev-square');
+            // Sort states alphabetically for consistent display
+            const sortedStates = electionData.states.slice().sort((a, b) => a.name.localeCompare(b.name));
 
-                if (i <= totalDemEVs) {
-                    square.classList.add('democrat');
-                } else {
-                    square.classList.add('republican');
+            // Create state groups
+            sortedStates.forEach(state => {
+                const stateGroup = document.createElement('div');
+                stateGroup.classList.add('state-group');
+
+                // State label
+                const stateLabel = document.createElement('div');
+                stateLabel.classList.add('state-label');
+                stateLabel.innerText = state.name;
+                stateGroup.appendChild(stateLabel);
+
+                // Create squares based on state electoral votes
+                for (let i = 0; i < state.electoral_votes; i++) {
+                    const square = document.createElement('div');
+                    square.classList.add('ev-square');
+
+                    // Determine if the state is more likely Democrat or Republican
+                    const demProb = stateWinCounts[state.name]?.D / totalSimulations;
+                    const repProb = stateWinCounts[state.name]?.R / totalSimulations;
+
+                    if (demProb > repProb) {
+                        square.classList.add('democrat');
+                    } else {
+                        square.classList.add('republican');
+                    }
+
+                    // Add tipping point class if this square crosses the 270 threshold
+                    // Calculate cumulative EVs up to this state
+                    const cumulativeEV = calculateCumulativeEV(state.name);
+                    if (cumulativeEV === 270) {
+                        square.classList.add('tipping-point');
+                    }
+
+                    stateGroup.appendChild(square);
                 }
 
-                if (i === 270) {
-                    square.classList.add('tipping-point');
-                }
-
-                evGridContainer.appendChild(square);
-            }
+                evGridContainer.appendChild(stateGroup);
+            });
 
             // Update the display of total electoral votes
             evCountDisplay.innerHTML = `
                 <strong>Democratic Electoral Votes: ${totalDemEVs}</strong><br>
                 <strong>Republican Electoral Votes: ${totalRepEVs}</strong>
             `;
+        }
+
+        // Helper function to calculate cumulative EVs up to a state
+        function calculateCumulativeEV(stateName) {
+            let cumulative = 0;
+            for (let state of electionData.states) {
+                if (state.name === stateName) {
+                    cumulative += state.electoral_votes;
+                    break;
+                }
+                const demProb = stateWinCounts[state.name]?.D / totalSimulations;
+                const repProb = stateWinCounts[state.name]?.R / totalSimulations;
+                if (demProb > repProb) {
+                    cumulative += state.electoral_votes;
+                } else {
+                    cumulative += state.electoral_votes;
+                }
+            }
+            return cumulative;
         }
 
         function stateWinCountsTotal() {
