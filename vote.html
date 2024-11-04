@@ -195,8 +195,8 @@
                 attribution: '© OpenStreetMap'
             }).addTo(map);
 
-            // Add GeoJSON layer for states
-            fetch('https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json')
+            // Add GeoJSON layer for states from the new URL
+            fetch('https://raw.githubusercontent.com/Adoucett/demos/refs/heads/master/cb_2018_us_state_20m.geojson')
                 .then(response => response.json())
                 .then(statesData => {
                     geojsonLayer = L.geoJson(statesData, {
@@ -209,7 +209,7 @@
 
         // Style each state
         function styleFeature(feature) {
-            const stateName = feature.properties.name;
+            const stateName = feature.properties.NAME; // Adjusted to use the correct property
             const demWinProb = stateWinCounts[stateName]?.DWinProb || 50;
             const repWinProb = stateWinCounts[stateName]?.RWinProb || 50;
             let fillColor = '#808080'; // Default gray
@@ -286,9 +286,9 @@
         // Update the information control
         info.update = function (props) {
             this._div.innerHTML = '<h4>State Win Probability</h4>' +  (props ?
-                '<b>' + props.name + '</b><br />' + 
-                (stateWinCounts[props.name]?.DWinProb.toFixed(2) || '50.00') + '% Dem Win<br />' +
-                (stateWinCounts[props.name]?.RWinProb.toFixed(2) || '50.00') + '% Rep Win'
+                '<b>' + props.NAME + '</b><br />' +  // Changed to NAME
+                (stateWinCounts[props.NAME]?.DWinProb.toFixed(2) || '50.00') + '% Dem Win<br />' +
+                (stateWinCounts[props.NAME]?.RWinProb.toFixed(2) || '50.00') + '% Rep Win'
                 : 'Hover over a state');
         };
 
@@ -559,7 +559,7 @@
             if (!geojsonLayer) return;
 
             geojsonLayer.eachLayer(function(layer) {
-                const stateName = layer.feature.properties.name;
+                const stateName = layer.feature.properties.NAME; // Adjusted to use the correct property
                 const demWinProb = ((stateWinCounts[stateName]?.D || 0) / totalSimulations * 100) || 50;
                 const repWinProb = ((stateWinCounts[stateName]?.R || 0) / totalSimulations * 100) || 50;
 
