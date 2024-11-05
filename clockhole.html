@@ -1,715 +1,328 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Article Reader</title>
-    <style>
-        /* CSS Reset */
-        *, *:before, *:after {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        /* Root Variables for Theme */
-        :root {
-            --font-family: Gilroy, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-            --primary-color: #FF6701;
-            --secondary-color: #F6F6F6;
-            --accent-color: #3498db;
-            --hover-color: #bdc3c7;
-            --transition-speed: 0.3s;
-            --spinner-size: 50px;
-            --text-color: #000; /* Black text color for articles and titles */
-
-            /* Header and Footer Heights */
-            --header-height: 60px; /* Reduced from 80px */
-            --footer-height: 40px; /* Reduced from 60px */
-
-            /* Resizer Variables */
-            --resizer-width: 5px;
-            --min-sidebar-width: 200px;
-            --max-sidebar-width: 500px;
-            --sidebar-width: 250px; /* Initial width */
-
-            /* Readability Enhancements */
-            --max-paragraph-width: 600px; /* Optimal line length */
-            --paragraph-margin: 1.5em 0; /* Spacing between paragraphs */
-            --content-padding: 20px; /* Padding inside content area */
-            --content-background: #ffffff; /* Background color for content */
-        }
-
-        body {
-            font-family: var(--font-family);
-            background-color: var(--secondary-color);
-            color: var(--text-color);
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-            line-height: 1.6; /* Adjusted for better readability */
-            -webkit-font-smoothing: antialiased;
-        }
-
-        header {
-            background-color: var(--primary-color);
-            color: var(--secondary-color);
-            padding: 10px 20px; /* Reduced padding for less height */
-            text-align: center;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            height: var(--header-height);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        header h1 {
-            margin: 0;
-            font-size: 1.5em; /* Reduced font size for less height */
-        }
-
-        .header-controls {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        header input {
-            padding: 8px;
-            width: 60%;
-            max-width: 300px;
-            border: none;
-            border-radius: 5px;
-            font-size: 1em;
-            font-family: var(--font-family);
-        }
-
-        .random-button {
-            padding: 10px 16px; /* Increased padding for touch friendliness */
-            border: none;
-            background-color: var(--accent-color);
-            color: #fff;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color var(--transition-speed);
-            font-family: var(--font-family);
-            font-size: 1em;
-        }
-
-        .random-button:hover,
-        .random-button:focus {
-            background-color: #2980b9;
-            outline: none;
-        }
-
-        .container {
-            display: flex;
-            flex: 1;
-            padding: 20px;
-            gap: 0; /* Gap removed to accommodate resizer */
-            max-width: 1200px;
-            margin: 0 auto;
-            width: 100%;
-            position: relative;
-            overflow: hidden;
-        }
-
-        /* Sidebar Styles */
-        .sidebar {
-            background: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            height: 100%; /* Changed from 80vh to 100% for better flexibility */
-            position: relative;
-            overflow: hidden; /* Hide scrollbar initially */
-            width: var(--sidebar-width); /* Controlled via CSS variable */
-            min-width: var(--min-sidebar-width);
-            max-width: var(--max-sidebar-width);
-            transition: width var(--transition-speed);
-        }
-
-        .sidebar h2 {
-            margin-bottom: 15px;
-            font-size: 1.2em; /* Adjusted font size */
-            color: var(--primary-color);
-            font-family: var(--font-family);
-        }
-
-        .article-list {
-            list-style: none;
-            overflow-y: auto;
-            flex: 1;
-            padding-right: 10px;
-        }
-
-        .article-list li {
-            padding: 12px 10px; /* Increased padding for touch friendliness */
-            margin-bottom: 8px;
-            cursor: pointer;
-            border-radius: 5px;
-            transition: background-color var(--transition-speed), color var(--transition-speed);
-            background-color: #f9f9f9;
-            font-family: var(--font-family);
-            color: var(--text-color);
-            font-size: 1em;
-        }
-
-        .article-list li:hover,
-        .article-list li:focus {
-            background-color: var(--hover-color);
-            outline: none;
-        }
-
-        .article-list li.active {
-            background-color: var(--accent-color);
-            color: #fff;
-        }
-
-        .pagination {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 10px;
-        }
-
-        .pagination button {
-            padding: 10px 16px; /* Increased padding for touch friendliness */
-            border: none;
-            background-color: var(--accent-color);
-            color: #fff;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color var(--transition-speed);
-            font-family: var(--font-family);
-            font-size: 1em;
-        }
-
-        .pagination button:disabled {
-            background-color: #95a5a6;
-            cursor: not-allowed;
-        }
-
-        .pagination button:hover:not(:disabled),
-        .pagination button:focus:not(:disabled) {
-            background-color: #2980b9;
-            outline: none;
-        }
-
-        /* Resizer Styles */
-        .resizer {
-            width: var(--resizer-width);
-            cursor: col-resize;
-            background-color: #e0e0e0;
-            height: 100%;
-            position: absolute;
-            top: 0;
-            right: 0;
-            z-index: 100;
-        }
-
-        /* Content Styles */
-        .content {
-            background: var(--content-background);
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            padding: var(--content-padding);
-            overflow-y: auto;
-            height: 100%; /* Changed from 80vh to 100% for better flexibility */
-            position: relative;
-            font-family: var(--font-family);
-            color: var(--text-color);
-            flex: 1;
-            transition: margin-left var(--transition-speed), max-width var(--transition-speed);
-            margin-left: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center; /* Center content horizontally */
-        }
-
-        .content h2 {
-            margin-bottom: 15px;
-            color: var(--text-color);
-            font-size: 1.5em; /* Adjusted font size */
-            font-family: var(--font-family);
-            text-align: left; /* Ensure heading is left-aligned */
-            width: 100%; /* Make heading span the full width */
-        }
-
-        .content p {
-            line-height: 1.8;
-            text-align: left; /* Changed from justify to left */
-            max-width: var(--max-paragraph-width); /* Limit line length */
-            margin: var(--paragraph-margin); /* Add spacing between paragraphs */
-            color: var(--text-color);
-            font-family: var(--font-family);
-            font-size: 1em;
-        }
-
-        footer {
-            background-color: var(--primary-color);
-            color: var(--secondary-color);
-            text-align: center;
-            padding: 10px 20px; /* Reduced padding for less height */
-            position: sticky;
-            bottom: 0;
-            font-family: var(--font-family);
-            height: var(--footer-height);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* Loading Spinner */
-        .spinner {
-            border: 8px solid #f3f3f3;
-            border-top: 8px solid var(--accent-color);
-            border-radius: 50%;
-            width: var(--spinner-size);
-            height: var(--spinner-size);
-            animation: spin 1s linear infinite;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg) translate(-50%, -50%); }
-            100% { transform: rotate(360deg) translate(-50%, -50%); }
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .container {
-                flex-direction: column;
-            }
-
-            .sidebar, .content {
-                height: auto;
-            }
-
-            header input {
-                width: 90%;
-            }
-
-            .resizer {
-                display: none; /* Hide resizer on smaller screens */
-            }
-
-            .sidebar {
-                width: 100%; /* Full width on small screens */
-                max-width: 100%;
-            }
-
-            /* Hide the slider on small screens */
-            .sidebar .resize-slider {
-                display: none;
-            }
-
-            /* Adjust content max-width on smaller screens */
-            .content p {
-                max-width: 100%;
-            }
-        }
-
-        /* Paragraphs adjustments */
-        .content > p:first-child {
-            margin-top: 0;
-        }
-
-        .content > p:first-of-type {
-            margin-top: 3em;
-        }
-
-        p {
-            margin: var(--paragraph-margin);
-            color: var(--text-color);
-            font-family: var(--font-family);
-        }
-
-        /* Adjust padding for wider screens */
-        @media screen and (min-width: 500px) { /* 31.25em ≈ 500px */
-            .content > p, .content > figure, .content > h2, .content > h3, .content > h4, .content > ul, .content > li {
-                padding: 0 5%;
-            }
-        }
-
-        /* Ensure scrollbar visibility in sidebar */
-        .sidebar .article-list::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .sidebar .article-list::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 4px;
-        }
-
-        .sidebar .article-list::-webkit-scrollbar-thumb {
-            background: #c1c1c1;
-            border-radius: 4px;
-        }
-
-        .sidebar .article-list::-webkit-scrollbar-thumb:hover {
-            background: #a8a8a8;
-        }
-
-        /* Slider Styles */
-        .sidebar .resize-slider {
-            margin-top: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .sidebar .resize-slider label {
-            font-size: 0.9em;
-            color: var(--primary-color);
-            font-family: var(--font-family);
-        }
-
-        .sidebar .resize-slider input[type="range"] {
-            flex: 1;
-        }
-
-        /* Ensure adequate touch targets */
-        button, input[type="button"], input[type="submit"], .random-button {
-            touch-action: manipulation;
-        }
-
-        /* Improve font rendering on mobile */
-        @media (max-width: 768px) {
-            body {
-                font-size: 16px;
-            }
-
-            .content p {
-                font-size: 1em;
-            }
-
-            .sidebar .article-list li {
-                font-size: 1em;
-            }
-
-            .pagination button, .random-button {
-                font-size: 1em;
-            }
-        }
-
-        /* Adjust footer for smaller screens */
-        @media (max-width: 768px) {
-            footer {
-                height: auto;
-                padding: 15px 20px;
-            }
-        }
-    </style>
-</head>
-<body>
-
-    <header>
-        <h1>Article Reader</h1>
-        <div class="header-controls">
-            <input type="text" id="search-input" placeholder="Search articles..." aria-label="Search Articles">
-            <button class="random-button" id="random-btn" aria-label="Random Article">Random Article</button>
-        </div>
-    </header>
-
-    <div class="container">
-        <aside class="sidebar" aria-label="Article List">
-            <h2>Articles</h2>
-            <ul class="article-list" id="article-list">
-                <!-- Article titles will be loaded here -->
-            </ul>
-            <div class="pagination" id="pagination">
-                <button id="prev-btn" disabled aria-label="Previous Page">Previous</button>
-                <span id="page-info">Page 1</span>
-                <button id="next-btn">Next</button>
-            </div>
-            <div id="sidebar-spinner" class="spinner" style="display: none;"></div>
-
-            <!-- Slider to Resize Sidebar -->
-            <div class="resize-slider">
-                <label for="sidebar-slider">Resize Sidebar:</label>
-                <input type="range" id="sidebar-slider" min="200" max="500" value="250" aria-label="Resize Sidebar">
-            </div>
-        </aside>
-
-        <!-- Resizer -->
-        <div class="resizer" id="resizer"></div>
-
-        <section class="content" id="article-content" tabindex="0" aria-live="polite">
-            <h2>Welcome!</h2>
-            <p>Select an article from the list to read its content.</p>
-            <div id="content-spinner" class="spinner" style="display: none;"></div>
-        </section>
-    </div>
-
-    <footer>
-        <p>For Educational Purposes Only.</p>
-    </footer>
-
-    <script>
-        const articlesPerPage = 20;
-        let currentPage = 1;
-        let articles = [];
-        let filteredArticles = [];
-
-        // DOM Elements
-        const articleList = document.getElementById('article-list');
-        const articleContent = document.getElementById('article-content');
-        const prevBtn = document.getElementById('prev-btn');
-        const nextBtn = document.getElementById('next-btn');
-        const pageInfo = document.getElementById('page-info');
-        const searchInput = document.getElementById('search-input');
-        const sidebarSpinner = document.getElementById('sidebar-spinner');
-        const contentSpinner = document.getElementById('content-spinner');
-        const randomBtn = document.getElementById('random-btn');
-        const resizer = document.getElementById('resizer');
-        const sidebar = document.querySelector('.sidebar');
-        const sidebarSlider = document.getElementById('sidebar-slider');
-
-        // Function to format content into paragraphs
-        function formatContent(content) {
-            // Split the content by periods followed by a space to create paragraphs
-            const paragraphs = content.split(/\.\s+/).map(paragraph => paragraph.trim()).filter(paragraph => paragraph.length > 0);
-            return paragraphs.map(paragraph => `<p>${paragraph}.</p>`).join('');
-        }
-
-        // Fetch articles from external JSON file
-        async function fetchArticles() {
-            try {
-                sidebarSpinner.style.display = 'block';
-                const response = await fetch('https://raw.githubusercontent.com/Adoucett/demos/refs/heads/master/clickhole_articles.json');
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                articles = await response.json();
-                filteredArticles = articles;
-                renderArticles();
-            } catch (error) {
-                console.error('Failed to fetch articles:', error);
-                articleList.innerHTML = '<li>Error loading articles.</li>';
-            } finally {
-                sidebarSpinner.style.display = 'none';
-            }
-        }
-
-        // Render articles based on current page and filter
-        function renderArticles() {
-            articleList.innerHTML = '';
-            const start = (currentPage - 1) * articlesPerPage;
-            const end = start + articlesPerPage;
-            const paginatedArticles = filteredArticles.slice(start, end);
-
-            if (paginatedArticles.length === 0) {
-                articleList.innerHTML = '<li>No articles found.</li>';
-                updatePagination();
+<!doctypehtml><html lang=en><meta charset=UTF-8><meta content="width=device-width,initial-scale=1"name=viewport><title>Article Reader</title><style>*,:after,:before{box-sizing:border-box;margin:0;padding:0}:root{--font-family:Gilroy,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;--primary-color:#FF6701;--secondary-color:#F6F6F6;--accent-color:#3498db;--hover-color:#bdc3c7;--transition-speed:0.3s;--spinner-size:50px;--text-color:#000;--header-height:60px;--footer-height:40px;--resizer-width:5px;--min-sidebar-width:200px;--max-sidebar-width:500px;--sidebar-width:250px;--max-paragraph-width:600px;--paragraph-margin:1.5em 0;--content-padding:20px;--content-background:#ffffff}body{font-family:var(--font-family);background-color:var(--secondary-color);color:var(--text-color);display:flex;flex-direction:column;min-height:100vh;line-height:1.6;-webkit-font-smoothing:antialiased}header{background-color:var(--primary-color);color:var(--secondary-color);padding:10px 20px;text-align:center;position:sticky;top:0;z-index:1000;height:var(--header-height);display:flex;align-items:center;justify-content:space-between}header h1{margin:0;font-size:1.5em}.header-controls{display:flex;align-items:center;gap:10px}header input{padding:8px;width:60%;max-width:300px;border:none;border-radius:5px;font-size:1em;font-family:var(--font-family)}.random-button{padding:10px 16px;border:none;background-color:var(--accent-color);color:#fff;border-radius:5px;cursor:pointer;transition:background-color var(--transition-speed);font-family:var(--font-family);font-size:1em}.random-button:focus,.random-button:hover{background-color:#2980b9;outline:0}.container{display:flex;flex:1;padding:20px;gap:0;max-width:1200px;margin:0 auto;width:100%;position:relative;overflow:hidden}.sidebar{background:#fff;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);padding:20px;display:flex;flex-direction:column;height:100%;position:relative;overflow:hidden;width:var(--sidebar-width);min-width:var(--min-sidebar-width);max-width:var(--max-sidebar-width);transition:width var(--transition-speed)}.sidebar h2{margin-bottom:15px;font-size:1.2em;color:var(--primary-color);font-family:var(--font-family)}.article-list{list-style:none;overflow-y:auto;flex:1;padding-right:10px}.article-list li{padding:12px 10px;margin-bottom:8px;cursor:pointer;border-radius:5px;transition:background-color var(--transition-speed),color var(--transition-speed);background-color:#f9f9f9;font-family:var(--font-family);color:var(--text-color);font-size:1em}.article-list li:focus,.article-list li:hover{background-color:var(--hover-color);outline:0}.article-list li.active{background-color:var(--accent-color);color:#fff}.pagination{display:flex;justify-content:space-between;align-items:center;margin-top:10px}.pagination button{padding:10px 16px;border:none;background-color:var(--accent-color);color:#fff;border-radius:5px;cursor:pointer;transition:background-color var(--transition-speed);font-family:var(--font-family);font-size:1em}.pagination button:disabled{background-color:#95a5a6;cursor:not-allowed}.pagination button:focus:not(:disabled),.pagination button:hover:not(:disabled){background-color:#2980b9;outline:0}.resizer{width:var(--resizer-width);cursor:col-resize;background-color:#e0e0e0;height:100%;position:absolute;top:0;right:0;z-index:100}.content{background:var(--content-background);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);padding:var(--content-padding);overflow-y:auto;height:100%;position:relative;font-family:var(--font-family);color:var(--text-color);flex:1;transition:margin-left var(--transition-speed),max-width var(--transition-speed);margin-left:0;display:flex;flex-direction:column;align-items:center}.content h2{margin-bottom:15px;color:var(--text-color);font-size:1.5em;font-family:var(--font-family);text-align:left;width:100%}.content p{line-height:1.8;text-align:left;max-width:var(--max-paragraph-width);margin:var(--paragraph-margin);color:var(--text-color);font-family:var(--font-family);font-size:1em}footer{background-color:var(--primary-color);color:var(--secondary-color);text-align:center;padding:10px 20px;position:sticky;bottom:0;font-family:var(--font-family);height:var(--footer-height);display:flex;align-items:center;justify-content:center}.spinner{border:8px solid #f3f3f3;border-top:8px solid var(--accent-color);border-radius:50%;width:var(--spinner-size);height:var(--spinner-size);animation:spin 1s linear infinite;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}@keyframes spin{0%{transform:rotate(0) translate(-50%,-50%)}100%{transform:rotate(360deg) translate(-50%,-50%)}}@media (max-width:768px){.container{flex-direction:column}.content,.sidebar{height:auto}header input{width:90%}.resizer{display:none}.sidebar{width:100%;max-width:100%}.sidebar .resize-slider{display:none}.content p{max-width:100%}}.content>p:first-child{margin-top:0}.content>p:first-of-type{margin-top:3em}p{margin:var(--paragraph-margin);color:var(--text-color);font-family:var(--font-family)}@media screen and (min-width:500px){.content>figure,.content>h2,.content>h3,.content>h4,.content>li,.content>p,.content>ul{padding:0 5%}}.sidebar .article-list::-webkit-scrollbar{width:8px}.sidebar .article-list::-webkit-scrollbar-track{background:#f1f1f1;border-radius:4px}.sidebar .article-list::-webkit-scrollbar-thumb{background:#c1c1c1;border-radius:4px}.sidebar .article-list::-webkit-scrollbar-thumb:hover{background:#a8a8a8}.sidebar .resize-slider{margin-top:15px;display:flex;align-items:center;gap:10px}.sidebar .resize-slider label{font-size:.9em;color:var(--primary-color);font-family:var(--font-family)}.sidebar .resize-slider input[type=range]{flex:1}.random-button,button,input[type=button],input[type=submit]{touch-action:manipulation}@media (max-width:768px){body{font-size:16px}.content p{font-size:1em}.sidebar .article-list li{font-size:1em}.pagination button,.random-button{font-size:1em}}@media (max-width:768px){footer{height:auto;padding:15px 20px}}</style><header><h1>Article Reader</h1><div class=header-controls><input aria-label="Search Articles"id=search-input placeholder="Search articles..."> <button id=random-btn aria-label="Random Article"class=random-button>Random Article</button></div></header><div class=container><aside aria-label="Article List"class=sidebar><h2>Articles</h2><ul class=article-list id=article-list></ul><div class=pagination id=pagination><button id=prev-btn aria-label="Previous Page"disabled>Previous</button> <span id=page-info>Page 1</span> <button id=next-btn>Next</button></div><div class=spinner id=sidebar-spinner style=display:none></div><div class=resize-slider><label for=sidebar-slider>Resize Sidebar:</label> <input aria-label="Resize Sidebar"id=sidebar-slider max=500 min=200 type=range value=250></div></aside><div class=resizer id=resizer></div><section aria-live=polite class=content id=article-content tabindex=0><h2>Welcome!</h2><p>Select an article from the list to read its content.<div class=spinner id=content-spinner style=display:none></div></section></div><footer><p>For Educational Purposes Only.</footer><script>document.addEventListener('DOMContentLoaded', () => {
+            const articlesPerPage = 20;
+            let currentPage = 1;
+            let articles = [];
+            let filteredArticles = [];
+
+            // DOM Elements with null checks
+            const articleList = document.getElementById('article-list');
+            if (!articleList) {
+                console.error("Element with ID 'article-list' not found.");
                 return;
             }
 
-            paginatedArticles.forEach((article, index) => {
-                const listItem = document.createElement('li');
-                listItem.textContent = article.Title;
-                listItem.dataset.index = start + index;
-                listItem.tabIndex = 0; // Make focusable for accessibility
-                listItem.setAttribute('role', 'button');
-                listItem.setAttribute('aria-pressed', 'false');
+            const articleContent = document.getElementById('article-content');
+            if (!articleContent) {
+                console.error("Element with ID 'article-content' not found.");
+                return;
+            }
 
-                // Click Event
-                listItem.addEventListener('click', () => {
-                    displayArticleContent(start + index);
-                    setActiveItem(start + index);
-                });
+            const prevBtn = document.getElementById('prev-btn');
+            if (!prevBtn) {
+                console.error("Element with ID 'prev-btn' not found.");
+                return;
+            }
 
-                // Keyboard Event
-                listItem.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
+            const nextBtn = document.getElementById('next-btn');
+            if (!nextBtn) {
+                console.error("Element with ID 'next-btn' not found.");
+                return;
+            }
+
+            const pageInfo = document.getElementById('page-info');
+            if (!pageInfo) {
+                console.error("Element with ID 'page-info' not found.");
+                return;
+            }
+
+            const searchInput = document.getElementById('search-input');
+            if (!searchInput) {
+                console.error("Element with ID 'search-input' not found.");
+                return;
+            }
+
+            const sidebarSpinner = document.getElementById('sidebar-spinner');
+            if (!sidebarSpinner) {
+                console.error("Element with ID 'sidebar-spinner' not found.");
+                return;
+            }
+
+            const contentSpinner = document.getElementById('content-spinner');
+            if (!contentSpinner) {
+                console.error("Element with ID 'content-spinner' not found.");
+                return;
+            }
+
+            const randomBtn = document.getElementById('random-btn');
+            if (!randomBtn) {
+                console.error("Element with ID 'random-btn' not found.");
+                return;
+            }
+
+            const resizer = document.getElementById('resizer');
+            if (!resizer) {
+                console.error("Element with ID 'resizer' not found.");
+                return;
+            }
+
+            const sidebar = document.querySelector('.sidebar');
+            if (!sidebar) {
+                console.error("Element with class 'sidebar' not found.");
+                return;
+            }
+
+            const sidebarSlider = document.getElementById('sidebar-slider');
+            if (!sidebarSlider) {
+                console.error("Element with ID 'sidebar-slider' not found.");
+                return;
+            }
+
+            // Function to format content into paragraphs
+            function formatContent(content) {
+                // Split the content by periods followed by a space to create paragraphs
+                const paragraphs = content.split(/\.\s+/).map(paragraph => paragraph.trim()).filter(paragraph => paragraph.length > 0);
+                return paragraphs.map(paragraph => `<p>${paragraph}.</p>`).join('');
+            }
+
+            // Fetch articles from external JSON file
+            async function fetchArticles() {
+                try {
+                    sidebarSpinner.style.display = 'block';
+                    const response = await fetch('https://raw.githubusercontent.com/Adoucett/demos/refs/heads/master/clickhole_articles.json');
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    articles = await response.json();
+                    filteredArticles = articles;
+                    renderArticles();
+                } catch (error) {
+                    console.error('Failed to fetch articles:', error);
+                    articleList.innerHTML = '<li>Error loading articles.</li>';
+                } finally {
+                    sidebarSpinner.style.display = 'none';
+                }
+            }
+
+            // Render articles based on current page and filter
+            function renderArticles() {
+                articleList.innerHTML = '';
+                const start = (currentPage - 1) * articlesPerPage;
+                const end = start + articlesPerPage;
+                const paginatedArticles = filteredArticles.slice(start, end);
+
+                if (paginatedArticles.length === 0) {
+                    articleList.innerHTML = '<li>No articles found.</li>';
+                    updatePagination();
+                    return;
+                }
+
+                paginatedArticles.forEach((article, index) => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = article.Title;
+                    listItem.dataset.index = start + index;
+                    listItem.tabIndex = 0; // Make focusable for accessibility
+                    listItem.setAttribute('role', 'button');
+                    listItem.setAttribute('aria-pressed', 'false');
+
+                    // Click Event
+                    listItem.addEventListener('click', () => {
                         displayArticleContent(start + index);
                         setActiveItem(start + index);
-                    }
+                    });
+
+                    // Keyboard Event
+                    listItem.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            displayArticleContent(start + index);
+                            setActiveItem(start + index);
+                        }
+                    });
+
+                    articleList.appendChild(listItem);
                 });
 
-                articleList.appendChild(listItem);
-            });
-
-            updatePagination();
-        }
-
-        // Update pagination buttons and info
-        function updatePagination() {
-            const totalPages = Math.ceil(filteredArticles.length / articlesPerPage);
-            pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
-
-            prevBtn.disabled = currentPage === 1;
-            nextBtn.disabled = currentPage === totalPages || totalPages === 0;
-        }
-
-        // Display content of clicked article
-        async function displayArticleContent(index) {
-            const article = filteredArticles[index];
-            if (!article) return;
-
-            // Show loading spinner in content
-            contentSpinner.style.display = 'block';
-            articleContent.scrollTop = 0; // Scroll to top
-
-            try {
-                // Simulate async loading if needed
-                await new Promise(resolve => setTimeout(resolve, 300));
-
-                const formattedContent = formatContent(article.Content);
-
-                articleContent.innerHTML = `
-                    <h2>${article.Title}</h2>
-                    ${formattedContent}
-                `;
-                articleContent.focus(); // Move focus for accessibility
-            } catch (error) {
-                console.error('Error displaying article:', error);
-                articleContent.innerHTML = '<p>Error loading article content.</p>';
-            } finally {
-                contentSpinner.style.display = 'none';
+                updatePagination();
             }
-        }
 
-        // Set active item in the list
-        function setActiveItem(index) {
-            const items = document.querySelectorAll('.article-list li');
-            items.forEach(item => {
-                if (parseInt(item.dataset.index, 10) === index) {
-                    item.classList.add('active');
-                    item.setAttribute('aria-pressed', 'true');
-                } else {
-                    item.classList.remove('active');
-                    item.setAttribute('aria-pressed', 'false');
+            // Update pagination buttons and info
+            function updatePagination() {
+                const totalPages = Math.ceil(filteredArticles.length / articlesPerPage);
+                pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+
+                prevBtn.disabled = currentPage === 1;
+                nextBtn.disabled = currentPage === totalPages || totalPages === 0;
+            }
+
+            // Display content of clicked article
+            async function displayArticleContent(index) {
+                const article = filteredArticles[index];
+                if (!article) return;
+
+                // Show loading spinner in content
+                contentSpinner.style.display = 'block';
+                articleContent.scrollTop = 0; // Scroll to top
+
+                try {
+                    // Simulate async loading if needed
+                    await new Promise(resolve => setTimeout(resolve, 300));
+
+                    const formattedContent = formatContent(article.Content);
+
+                    articleContent.innerHTML = `
+                        <h2>${article.Title}</h2>
+                        ${formattedContent}
+                    `;
+                    articleContent.focus(); // Move focus for accessibility
+                } catch (error) {
+                    console.error('Error displaying article:', error);
+                    articleContent.innerHTML = '<p>Error loading article content.</p>';
+                } finally {
+                    contentSpinner.style.display = 'none';
                 }
-            });
-        }
-
-        // Handle pagination
-        prevBtn.addEventListener('click', () => {
-            if (currentPage > 1) {
-                currentPage--;
-                renderArticles();
-            }
-        });
-
-        nextBtn.addEventListener('click', () => {
-            const totalPages = Math.ceil(filteredArticles.length / articlesPerPage);
-            if (currentPage < totalPages) {
-                currentPage++;
-                renderArticles();
-            }
-        });
-
-        // Handle search with debounce
-        let debounceTimeout;
-        searchInput.addEventListener('input', () => {
-            clearTimeout(debounceTimeout);
-            debounceTimeout = setTimeout(() => {
-                const query = searchInput.value.toLowerCase();
-                filteredArticles = articles.filter(article => article.Title.toLowerCase().includes(query));
-                currentPage = 1;
-                renderArticles();
-            }, 300);
-        });
-
-        // Handle Random Article Button
-        randomBtn.addEventListener('click', () => {
-            if (articles.length === 0) return;
-            const randomIndex = Math.floor(Math.random() * articles.length);
-            const randomArticle = articles[randomIndex];
-            const articleGlobalIndex = articles.indexOf(randomArticle);
-            displayArticleContent(articleGlobalIndex);
-            setActiveItem(articleGlobalIndex);
-
-            // Scroll the random article into view in the sidebar
-            const activeItem = document.querySelector('.article-list li.active');
-            if (activeItem) {
-                activeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        });
-
-        // Handle Sidebar Resizing with Resizer (Drag)
-        resizer.addEventListener('mousedown', initResize, false);
-        resizer.addEventListener('touchstart', initResizeTouch, false); /* For touch devices */
-
-        function initResize(e) {
-            e.preventDefault();
-            window.addEventListener('mousemove', startResizing, false);
-            window.addEventListener('mouseup', stopResizing, false);
-        }
-
-        function initResizeTouch(e) {
-            e.preventDefault();
-            window.addEventListener('touchmove', startResizingTouch, false);
-            window.addEventListener('touchend', stopResizingTouch, false);
-        }
-
-        function startResizing(e) {
-            const containerRect = document.querySelector('.container').getBoundingClientRect();
-            let newWidth = e.clientX - containerRect.left;
-
-            // Enforce min and max widths
-            const minWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--min-sidebar-width'));
-            const maxWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--max-sidebar-width'));
-
-            if (newWidth < minWidth) {
-                newWidth = minWidth;
-            } else if (newWidth > maxWidth) {
-                newWidth = maxWidth;
             }
 
-            // Update CSS variable
-            document.documentElement.style.setProperty('--sidebar-width', `${newWidth}px`);
-            sidebarSlider.value = newWidth; // Sync slider
-        }
-
-        function startResizingTouch(e) {
-            const touch = e.touches[0];
-            const containerRect = document.querySelector('.container').getBoundingClientRect();
-            let newWidth = touch.clientX - containerRect.left;
-
-            // Enforce min and max widths
-            const minWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--min-sidebar-width'));
-            const maxWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--max-sidebar-width'));
-
-            if (newWidth < minWidth) {
-                newWidth = minWidth;
-            } else if (newWidth > maxWidth) {
-                newWidth = maxWidth;
+            // Set active item in the list
+            function setActiveItem(index) {
+                const items = document.querySelectorAll('.article-list li');
+                items.forEach(item => {
+                    if (parseInt(item.dataset.index, 10) === index) {
+                        item.classList.add('active');
+                        item.setAttribute('aria-pressed', 'true');
+                    } else {
+                        item.classList.remove('active');
+                        item.setAttribute('aria-pressed', 'false');
+                    }
+                });
             }
 
-            // Update CSS variable
-            document.documentElement.style.setProperty('--sidebar-width', `${newWidth}px`);
-            sidebarSlider.value = newWidth; // Sync slider
-        }
+            // Handle pagination
+            if (prevBtn) {
+                prevBtn.addEventListener('click', () => {
+                    if (currentPage > 1) {
+                        currentPage--;
+                        renderArticles();
+                    }
+                });
+            }
 
-        function stopResizing(e) {
-            window.removeEventListener('mousemove', startResizing, false);
-            window.removeEventListener('mouseup', stopResizing, false);
-        }
+            if (nextBtn) {
+                nextBtn.addEventListener('click', () => {
+                    const totalPages = Math.ceil(filteredArticles.length / articlesPerPage);
+                    if (currentPage < totalPages) {
+                        currentPage++;
+                        renderArticles();
+                    }
+                });
+            }
 
-        function stopResizingTouch(e) {
-            window.removeEventListener('touchmove', startResizingTouch, false);
-            window.removeEventListener('touchend', stopResizingTouch, false);
-        }
+            // Handle search with debounce
+            if (searchInput) {
+                let debounceTimeout;
+                searchInput.addEventListener('input', () => {
+                    clearTimeout(debounceTimeout);
+                    debounceTimeout = setTimeout(() => {
+                        const query = searchInput.value.toLowerCase();
+                        filteredArticles = articles.filter(article => article.Title.toLowerCase().includes(query));
+                        currentPage = 1;
+                        renderArticles();
+                    }, 300);
+                });
+            }
 
-        // Handle Sidebar Resizing with Slider
-        sidebarSlider.addEventListener('input', (e) => {
-            const newWidth = e.target.value;
-            document.documentElement.style.setProperty('--sidebar-width', `${newWidth}px`);
-        });
+            // Handle Random Article Button
+            if (randomBtn) {
+                randomBtn.addEventListener('click', () => {
+                    if (articles.length === 0) return;
+                    const randomIndex = Math.floor(Math.random() * articles.length);
+                    const randomArticle = articles[randomIndex];
+                    const articleGlobalIndex = articles.indexOf(randomArticle);
+                    displayArticleContent(articleGlobalIndex);
+                    setActiveItem(articleGlobalIndex);
 
-        // Initialize by fetching articles
-        document.addEventListener('DOMContentLoaded', fetchArticles);
-    </script>
+                    // Scroll the random article into view in the sidebar
+                    const activeItem = document.querySelector('.article-list li.active');
+                    if (activeItem) {
+                        activeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                });
+            }
 
-</body>
-</html>
+            // Handle Sidebar Resizing with Resizer (Drag)
+            if (resizer) {
+                resizer.addEventListener('mousedown', initResize, false);
+                resizer.addEventListener('touchstart', initResizeTouch, false); /* For touch devices */
+            }
+
+            function initResize(e) {
+                e.preventDefault();
+                window.addEventListener('mousemove', startResizing, false);
+                window.addEventListener('mouseup', stopResizing, false);
+            }
+
+            function initResizeTouch(e) {
+                e.preventDefault();
+                window.addEventListener('touchmove', startResizingTouch, false);
+                window.addEventListener('touchend', stopResizingTouch, false);
+            }
+
+            function startResizing(e) {
+                const containerRect = document.querySelector('.container').getBoundingClientRect();
+                let newWidth = e.clientX - containerRect.left;
+
+                // Enforce min and max widths
+                const minWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--min-sidebar-width'));
+                const maxWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--max-sidebar-width'));
+
+                if (newWidth < minWidth) {
+                    newWidth = minWidth;
+                } else if (newWidth > maxWidth) {
+                    newWidth = maxWidth;
+                }
+
+                // Update CSS variable
+                document.documentElement.style.setProperty('--sidebar-width', `${newWidth}px`);
+                sidebarSlider.value = newWidth; // Sync slider
+            }
+
+            function startResizingTouch(e) {
+                const touch = e.touches[0];
+                const containerRect = document.querySelector('.container').getBoundingClientRect();
+                let newWidth = touch.clientX - containerRect.left;
+
+                // Enforce min and max widths
+                const minWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--min-sidebar-width'));
+                const maxWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--max-sidebar-width'));
+
+                if (newWidth < minWidth) {
+                    newWidth = minWidth;
+                } else if (newWidth > maxWidth) {
+                    newWidth = maxWidth;
+                }
+
+                // Update CSS variable
+                document.documentElement.style.setProperty('--sidebar-width', `${newWidth}px`);
+                sidebarSlider.value = newWidth; // Sync slider
+            }
+
+            function stopResizing(e) {
+                window.removeEventListener('mousemove', startResizing, false);
+                window.removeEventListener('mouseup', stopResizing, false);
+            }
+
+            function stopResizingTouch(e) {
+                window.removeEventListener('touchmove', startResizingTouch, false);
+                window.removeEventListener('touchend', stopResizingTouch, false);
+            }
+
+            // Handle Sidebar Resizing with Slider
+            if (sidebarSlider) {
+                sidebarSlider.addEventListener('input', (e) => {
+                    const newWidth = e.target.value;
+                    document.documentElement.style.setProperty('--sidebar-width', `${newWidth}px`);
+                });
+            }
+
+            // Initialize by fetching articles
+            fetchArticles();
+        });</script>
