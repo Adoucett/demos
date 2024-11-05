@@ -104,6 +104,27 @@
             outline: none;
         }
 
+        /* "See All Articles" Button */
+        .see-all-button {
+            display: none; /* Hidden by default */
+            padding: 10px 16px;
+            border: none;
+            background-color: var(--accent-color);
+            color: #fff;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color var(--transition-speed);
+            font-family: var(--font-family);
+            font-size: 1em;
+        }
+
+        .see-all-button:hover,
+        .see-all-button:focus {
+            background-color: #2980b9;
+            outline: none;
+        }
+
+        /* Container */
         .container {
             display: flex;
             flex: 1;
@@ -131,6 +152,7 @@
             min-width: var(--min-sidebar-width);
             max-width: var(--max-sidebar-width);
             transition: width var(--transition-speed);
+            z-index: 1001; /* Above overlay */
         }
 
         .sidebar h2 {
@@ -138,6 +160,24 @@
             font-size: 1.2em; /* Adjusted font size */
             color: var(--primary-color);
             font-family: var(--font-family);
+        }
+
+        /* Close Sidebar Button (Mobile) */
+        .close-sidebar-button {
+            display: none; /* Hidden by default */
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            color: var(--text-color);
+            cursor: pointer;
+            align-self: flex-end;
+            margin-bottom: 10px;
+        }
+
+        .sidebar .close-sidebar-button:hover,
+        .sidebar .close-sidebar-button:focus {
+            color: #ff6701;
+            outline: none;
         }
 
         .article-list {
@@ -209,7 +249,7 @@
             position: absolute;
             top: 0;
             right: 0;
-            z-index: 100;
+            z-index: 1000;
         }
 
         /* Content Styles */
@@ -250,7 +290,7 @@
             font-size: 1em;
         }
 
-        /* Navigation Buttons for Mobile */
+        /* Mobile Navigation Buttons */
         .mobile-nav {
             display: none; /* Hidden by default */
             margin-top: auto;
@@ -280,6 +320,7 @@
             outline: none;
         }
 
+        /* Footer Styles */
         footer {
             background-color: var(--primary-color);
             color: var(--secondary-color);
@@ -332,13 +373,48 @@
             }
 
             .sidebar {
-                width: 100%; /* Full width on small screens */
-                max-width: 100%;
+                position: fixed;
+                top: var(--header-height);
+                left: 0;
+                height: calc(100% - var(--header-height));
+                width: 80%; /* Occupy 80% of the screen width */
+                max-width: 300px;
+                transform: translateX(-100%);
+                transition: transform var(--transition-speed);
+                z-index: 1001; /* Above overlay */
+                background-color: #fff;
             }
 
-            /* Hide the slider on small screens */
+            /* Show sidebar when .sidebar-open class is on body */
+            body.sidebar-open .sidebar {
+                transform: translateX(0);
+            }
+
+            /* Overlay to cover the rest of the screen when sidebar is open */
+            body.sidebar-open::before {
+                content: "";
+                position: fixed;
+                top: var(--header-height);
+                left: 0;
+                width: 100%;
+                height: calc(100% - var(--header-height));
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 1000;
+            }
+
+            /* "See All Articles" button visible on mobile */
+            .see-all-button {
+                display: block;
+            }
+
+            /* Hide the resize slider on mobile */
             .sidebar .resize-slider {
                 display: none;
+            }
+
+            /* Close Sidebar Button visible on mobile */
+            .close-sidebar-button {
+                display: block;
             }
 
             /* Adjust content max-width on smaller screens */
@@ -354,6 +430,11 @@
             /* Show mobile navigation buttons when article is open */
             .article-open .mobile-nav {
                 display: flex;
+            }
+
+            /* Disable body scroll when sidebar is open */
+            body.sidebar-open {
+                overflow: hidden;
             }
         }
 
@@ -417,7 +498,7 @@
         }
 
         /* Ensure adequate touch targets */
-        button, input[type="button"], input[type="submit"], .random-button {
+        button, input[type="button"], input[type="submit"], .random-button, .see-all-button, .close-sidebar-button {
             touch-action: manipulation;
         }
 
@@ -435,7 +516,7 @@
                 font-size: 1em;
             }
 
-            .pagination button, .random-button {
+            .pagination button, .random-button, .see-all-button {
                 font-size: 1em;
             }
         }
@@ -463,11 +544,13 @@
         <div class="header-controls">
             <input type="text" id="search-input" placeholder="Search articles..." aria-label="Search Articles">
             <button class="random-button" id="random-btn" aria-label="Random Article">Random Article</button>
+            <button class="see-all-button" id="see-all-btn" aria-label="See All Articles">See All Articles</button>
         </div>
     </header>
 
     <div class="container">
         <aside class="sidebar" aria-label="Article List">
+            <button class="close-sidebar-button" id="close-sidebar-btn" aria-label="Close Articles List">×</button>
             <h2>Articles</h2>
             <ul class="article-list" id="article-list">
                 <!-- Article titles will be loaded here -->
@@ -587,7 +670,9 @@
                 return;
             }
 
-            // Mobile Navigation Buttons
+            // Additional Elements
+            const seeAllBtn = document.getElementById('see-all-btn');
+            const closeSidebarBtn = document.getElementById('close-sidebar-btn');
             const prevArticleBtn = document.getElementById('prev-article');
             const nextArticleBtn = document.getElementById('next-article');
             const backToListBtn = document.getElementById('back-to-list');
@@ -646,6 +731,7 @@
                         // If on mobile, hide sidebar and show mobile navigation
                         if (isMobile()) {
                             document.body.classList.add('article-open');
+                            document.body.classList.remove('sidebar-open');
                             window.scrollTo(0, 0); // Scroll to top
                         }
                     });
@@ -659,6 +745,7 @@
                             // If on mobile, hide sidebar and show mobile navigation
                             if (isMobile()) {
                                 document.body.classList.add('article-open');
+                                document.body.classList.remove('sidebar-open');
                                 window.scrollTo(0, 0); // Scroll to top
                             }
                         }
@@ -774,6 +861,7 @@
                     // If on mobile, hide sidebar and show mobile navigation
                     if (isMobile()) {
                         document.body.classList.add('article-open');
+                        document.body.classList.remove('sidebar-open');
                         window.scrollTo(0, 0); // Scroll to top
                     }
                 });
@@ -882,8 +970,22 @@
             if (backToListBtn) {
                 backToListBtn.addEventListener('click', () => {
                     document.body.classList.remove('article-open');
-                    // Scroll to top of sidebar
-                    sidebar.scrollTop = 0;
+                    // Optionally, you can also show the sidebar again if needed
+                    // document.body.classList.add('sidebar-open');
+                });
+            }
+
+            // "See All Articles" Button Event Listener
+            if (seeAllBtn) {
+                seeAllBtn.addEventListener('click', () => {
+                    document.body.classList.toggle('sidebar-open');
+                });
+            }
+
+            // "Close Sidebar" Button Event Listener
+            if (closeSidebarBtn) {
+                closeSidebarBtn.addEventListener('click', () => {
+                    document.body.classList.remove('sidebar-open');
                 });
             }
 
@@ -902,8 +1004,10 @@
             }
 
             // Implement Infinite Scroll on Mobile
-            if (isMobile()) {
-                articleList.addEventListener('scroll', handleInfiniteScroll);
+            function setupInfiniteScroll() {
+                if (isMobile()) {
+                    articleList.addEventListener('scroll', handleInfiniteScroll);
+                }
             }
 
             function handleInfiniteScroll() {
@@ -937,8 +1041,9 @@
                 }
             }
 
-            // Initialize by fetching articles
+            // Initialize by fetching articles and setting up infinite scroll
             fetchArticles();
+            setupInfiniteScroll();
         });
     </script>
 
