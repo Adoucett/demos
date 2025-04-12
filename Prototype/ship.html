@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Planet Labs - Ship Detection Demo</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Helvetica Neue", Arial, sans-serif;
+      }
+
+      body {
+        background-color: #0a0a0a;
+        color: #ffffff;
+        overflow-x: hidden;
+      }
+
+      .header {
+        height: 80vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        padding: 0 2rem;
+      }
+
+      .header h1 {
+        font-size: 4rem;
+        margin-bottom: 1.5rem;
+        background: linear-gradient(90deg, #4bc0c8, #7f53ac);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .header p {
+        font-size: 1.5rem;
+        max-width: 800px;
+        line-height: 1.6;
+      }
+
+      .parallax-container {
+        position: relative;
+        height: 400vh;
+      }
+
+      .sticky-wrapper {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        width: 100%;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #0a0a0a;
+      }
+
+      .image-container {
+        position: relative;
+        width: 100%;
+        max-width: 2880px;
+        height: 900px;
+        transform: scale(0.8);
+      }
+
+      .base-image {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        opacity: 0;
+        transition: opacity 0.5s ease;
+      }
+
+      .detection-layer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .detection-layer svg {
+        width: 100%;
+        height: 100%;
+      }
+
+      /* Remove transforms from the source detection elements */
+      .detection-layer svg .b {
+        stroke: #e0366e;
+        stroke-width: 5px;
+        fill: rgba(224, 54, 110, 0.1);
+      }
+
+      /* Wrapper that lets us animate without overriding the original SVG transforms */
+      .detection-wrapper {
+        opacity: 0;
+        transform: translateY(-30px);
+        transition:
+          transform 0.5s ease,
+          opacity 0.4s ease;
+      }
+
+      /* Styles for the detection text (the LAT/LON label) */
+      .detection-layer svg text {
+        fill: #e0366e;
+        font-size: 24px;
+        font-weight: bold;
+        text-shadow: 0 0 5px rgba(224, 54, 110, 0.8);
+        opacity: 0;
+        transition:
+          opacity 0.5s ease,
+          transform 0.5s ease;
+      }
+
+      .content-section {
+        padding: 6rem 2rem;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .content-section h2 {
+        font-size: 3rem;
+        margin-bottom: 2rem;
+        color: #ffffff;
+      }
+
+      .content-section p {
+        font-size: 1.2rem;
+        line-height: 1.8;
+        margin-bottom: 2rem;
+        color: #cccccc;
+      }
+
+      .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-top: 4rem;
+      }
+
+      .feature-card {
+        background: linear-gradient(145deg, #1a1a1a, #0f0f0f);
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      }
+
+      .feature-card h3 {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        color: #ffffff;
+      }
+
+      .feature-card p {
+        font-size: 1rem;
+        color: #aaaaaa;
+      }
+
+      /* For smaller screens */
+      @media (max-width: 1200px) {
+        .image-container {
+          transform: scale(0.6);
+        }
+      }
+
+      @keyframes pulse {
+        0% {
+          stroke-opacity: 1;
+          filter: drop-shadow(0 0 5px rgba(224, 54, 110, 0.5));
+        }
+        50% {
+          stroke-opacity: 0.7;
+          filter: drop-shadow(0 0 15px rgba(224, 54, 110, 1));
+        }
+        100% {
+          stroke-opacity: 1;
+          filter: drop-shadow(0 0 5px rgba(224, 54, 110, 0.5));
+        }
+      }
+
+      .detection-layer svg .b {
+        stroke: #e0366e;
+        stroke-width: 4px;
+        fill: rgba(224, 54, 110, 0.3);
+        /* Apply the pulse animation */
+        animation: pulse 2s infinite ease-in-out;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="header">
+      <h1>Advanced Ship Detection</h1>
+      <p>
+        Using cutting-edge satellite imagery and machine learning to identify
+        vessels across the world's oceans in real-time.
+      </p>
+    </section>
+
+    <div class="parallax-container">
+      <div class="sticky-wrapper">
+        <div class="image-container">
+          <!-- Your high-res imagery -->
+          <img
+            src="https://adoucett.github.io/demos/Prototype/image_website_2_20240827_112022_81_2513_3B_detections.png"
+            alt="Aerial view of ocean with ships"
+            class="base-image"
+          />
+
+          <div class="detection-layer">
+            <!-- The SVG overlay will be injected here -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <section class="content-section">
+      <h2>Maritime Intelligence Platform</h2>
+      <p>
+        Planet Labs' ship detection technology enables unprecedented monitoring
+        capabilities across the world's oceans. Our platform combines
+        high-frequency satellite imagery with advanced machine learning
+        algorithms to detect, classify, and track vessels in near real time.
+      </p>
+      <p>
+        With daily revisits to maritime areas of interest, we provide the most
+        current information available for maritime domain awareness, helping
+        governments and businesses make informed decisions about ocean
+        activities.
+      </p>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <h3>Near Real-Time Detection</h3>
+          <p>
+            Detect vessels within hours of satellite capture, providing timely
+            intelligence for critical operations.
+          </p>
+        </div>
+        <div class="feature-card">
+          <h3>Global Coverage</h3>
+          <p>
+            Monitor shipping activities anywhere in the world with our
+            constellation of over 200 satellites.
+          </p>
+        </div>
+        <div class="feature-card">
+          <h3>Advanced AI Analytics</h3>
+          <p>
+            Our machine learning algorithms can identify vessel types, measure
+            lengths, and detect potential illegal activities.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="content-section">
+      <h2>Applications</h2>
+      <p>
+        Our maritime intelligence solutions serve a wide range of industries and
+        use cases:
+      </p>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <h3>Maritime Security</h3>
+          <p>
+            Monitor exclusive economic zones, detect unauthorized vessels, and
+            support law enforcement operations.
+          </p>
+        </div>
+        <div class="feature-card">
+          <h3>Environmental Protection</h3>
+          <p>
+            Identify vessels engaged in illegal fishing or entering protected
+            marine areas.
+          </p>
+        </div>
+        <div class="feature-card">
+          <h3>Shipping Intelligence</h3>
+          <p>
+            Track global shipping patterns, port congestion, and supply chain
+            movements.
+          </p>
+        </div>
+        <div class="feature-card">
+          <h3>Insurance & Risk Assessment</h3>
+          <p>
+            Verify vessel activities and locations for insurance claims and risk
+            management.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const baseImage = document.querySelector(".base-image")
+        const detectionLayer = document.querySelector(".detection-layer")
+        const parallaxContainer = document.querySelector(".parallax-container")
+        const imageContainer = document.querySelector(".image-container")
+
+        // Set initial state for the base image.
+        baseImage.style.opacity = "0"
+
+        // Load SVG overlay for detections.
+        fetch(
+          "https://raw.githubusercontent.com/Adoucett/demos/refs/heads/master/Prototype/Linework_website_2_20240827_112022_81_2513_3B_detections.svg",
+        )
+          .then((response) => response.text())
+          .then((svgContent) => {
+            detectionLayer.innerHTML = svgContent
+            const svg = detectionLayer.querySelector("svg")
+            const ns = "http://www.w3.org/2000/svg"
+
+            // Wrap each detection box (.b) in a new group so that we can animate without disturbing the original transforms
+            const shipElements = svg.querySelectorAll(".b")
+            shipElements.forEach((ship) => {
+              const wrapper = document.createElementNS(ns, "g")
+              wrapper.setAttribute("class", "detection-wrapper")
+              // Replace the ship element with the wrapper and then add the ship element inside it
+              ship.parentNode.replaceChild(wrapper, ship)
+              wrapper.appendChild(ship)
+            })
+
+            // For a militaristic feel, add a text label to the first detection element.
+            const detectionWrappers = svg.querySelectorAll(".detection-wrapper")
+            if (detectionWrappers.length > 0) {
+              // Use the inner ship element for bounding box calculation
+              const firstShip = detectionWrappers[0].querySelector(".b")
+              const bbox = firstShip.getBBox()
+              const detectionText = document.createElementNS(ns, "text")
+              detectionText.setAttribute("x", bbox.x + bbox.width / 2)
+              detectionText.setAttribute("y", bbox.y - 10)
+              detectionText.setAttribute("fill", "#e0366e")
+              detectionText.setAttribute("font-size", "24")
+              detectionText.setAttribute("font-weight", "bold")
+              detectionText.setAttribute("text-anchor", "middle")
+              detectionText.textContent =
+                "NEW VESSEL DETECTED: Lat 1.2878 N, Lon 103.7448 E"
+              svg.appendChild(detectionText)
+
+              // Animate the text label on initial appearance.
+              detectionText.style.opacity = "0"
+              setTimeout(() => {
+                detectionText.style.transition =
+                  "opacity 0.5s ease, transform 0.5s ease"
+                detectionText.style.opacity = "1"
+                detectionText.style.transform = "translateY(0px)"
+              }, 500)
+            }
+
+            window.addEventListener("scroll", () => {
+              const scrollPosition = window.scrollY
+              const containerTop = parallaxContainer.offsetTop
+              const containerHeight = parallaxContainer.offsetHeight
+              const scrollProgress =
+                (scrollPosition - containerTop) /
+                (containerHeight - window.innerHeight)
+
+              // Phase 1: Fade in and scale up base image (0-20% scroll)
+              if (scrollProgress >= 0 && scrollProgress < 0.2) {
+                const fadeInProgress = scrollProgress / 0.2
+                baseImage.style.opacity = Math.min(
+                  fadeInProgress * 3,
+                  1,
+                ).toString()
+                imageContainer.style.transform = `scale(${0.8 + fadeInProgress * 0.2})`
+              }
+
+              // Phase 2: Base image fully visible (20-40% scroll)
+              else if (scrollProgress >= 0.2 && scrollProgress < 0.4) {
+                baseImage.style.opacity = "1"
+                imageContainer.style.transform = "scale(1)"
+              }
+
+              // Phase 3: Detection overlay animates into view (40-60% scroll)
+              else if (scrollProgress >= 0.4 && scrollProgress < 0.6) {
+                const detectionProgress = (scrollProgress - 0.4) / 0.2
+                detectionLayer.style.opacity = detectionProgress.toString()
+
+                const detectionWrappers =
+                  svg.querySelectorAll(".detection-wrapper")
+                detectionWrappers.forEach((wrapper, index) => {
+                  const delay = index * 0.05
+                  let elementProgress =
+                    (detectionProgress - delay) / (1 - delay)
+                  elementProgress = Math.max(0, Math.min(1, elementProgress))
+                  wrapper.style.opacity = elementProgress
+                  wrapper.style.transform = `translateY(${-30 + 30 * elementProgress}px)`
+                })
+              }
+
+              // Phase 4: Everything remains visible (60-80% scroll)
+              else if (scrollProgress >= 0.6 && scrollProgress < 0.8) {
+                baseImage.style.opacity = "1"
+                detectionLayer.style.opacity = "1"
+                svg
+                  .querySelectorAll(".detection-wrapper")
+                  .forEach((wrapper) => {
+                    wrapper.style.opacity = "1"
+                    wrapper.style.transform = "translateY(0px)"
+                  })
+                imageContainer.style.transform = "scale(1)"
+                imageContainer.style.transformOrigin = "center center"
+              }
+
+              // Phase 5: Zoom into specific point, then hold stable (80-100% scroll)
+              else if (scrollProgress >= 0.8 && scrollProgress <= 1) {
+                const zoomProgress = (scrollProgress - 0.8) / 0.2
+                const finalScale = 1 + zoomProgress * 1.5 // from 1 to 2
+
+                // Adjust transform-origin to precisely zoom where desired (e.g., left-center)
+                imageContainer.style.transformOrigin = "25% 50%" // tweak as desired (left: 25% horizontally, 50% vertically)
+
+                imageContainer.style.transform = `scale(${finalScale})`
+                baseImage.style.opacity = "1"
+                detectionLayer.style.opacity = "1"
+              }
+
+              // Post-Zoom: Keep fixed position stable after zoom completes (>100%)
+              else if (scrollProgress > 1) {
+                imageContainer.style.transform = "scale(3)" // fixed at max zoom level
+                imageContainer.style.transformOrigin = "25% 50%" // match above to maintain stability
+              }
+            })
+
+            // Trigger initial scroll
+            window.dispatchEvent(new Event("scroll"))
+          })
+          .catch((error) => {
+            console.error("Error loading SVG:", error)
+          })
+      })
+    </script>
+  </body>
+</html>
