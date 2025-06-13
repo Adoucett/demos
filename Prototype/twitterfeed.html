@@ -12,27 +12,39 @@
     body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
     .tweet-content p { margin-bottom: 0.75rem; }
     .tweet-content a { color: #2563eb; text-decoration: underline; }
-    .attachments { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
-    .tweet-content img,
+    .attachments {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
     .tweet-content video,
-    .attachments img,
+    .tweet-content img,
+    .attachments video,
+    .attachments img { 
+      max-width: 100%; 
+      border-radius: 0.75rem; 
+      border: 1px solid #e5e7eb; 
+    }
+    .tweet-content video,
     .attachments video {
-      max-width: 100%;
-      border-radius: 0.75rem;
-      border: 1px solid #e5e7eb;
+      max-height: 400px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
     .spinner { animation: spin 1s linear infinite; }
   </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
+
   <div class="max-w-2xl mx-auto p-4 md:p-8">
     <header class="flex justify-between items-center mb-6">
       <h1 class="text-2xl font-bold text-gray-900">Lightweight X Feed</h1>
-      <div class="flex items-center gap-2">
-        <label class="text-sm text-gray-700">Load:</label>
-        <input id="feed-length" type="number" min="1" max="100" value="20" class="w-16 px-2 py-1 border rounded" />
-        <span class="text-sm text-gray-700">posts</span>
+      <div class="flex items-center gap-4">
+        <select id="feedLength" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="10">10 tweets</option>
+          <option value="20" selected>20 tweets</option>
+          <option value="50">50 tweets</option>
+          <option value="100">100 tweets</option>
+        </select>
         <button onclick="loadFeed()" class="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
             <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
@@ -48,41 +60,55 @@
   </div>
 
   <script>
-    // --- Configuration ---
+    // Configuration
     const usernames = ['sentdefender', 'Osint613', 'Osinttechnical'];
     const nitterInstance = 'https://nitter.net';
     const proxyUrl = 'https://api.allorigins.win/get?url=';
 
     const feedContainer = document.getElementById('feed');
     const statusContainer = document.getElementById('status');
-    const feedLengthInput = document.getElementById('feed-length');
+    const feedLengthSelect = document.getElementById('feedLength');
+    let feedLength = parseInt(feedLengthSelect.value, 10);
+    let allTweets = [];
 
+    // Fetch and parse Nitter HTML
     async function fetchAndParseHTML(url) {
       const response = await fetch(proxyUrl + encodeURIComponent(url));
-      if (!response.ok) throw new Error(`Proxy error: ${response.status}`);
-      const { contents } = await response.json();
-      const doc = new DOMParser().parseFromString(contents, 'text/html');
-      if (!doc.querySelector('.timeline')) throw new Error('Timeline not found');
+      if (!response.ok) {
+        throw new Error(`Proxy error: ${response.status} ${response.statusText}`);
+      }
+      const data = await response.json();
+      const htmlText = data.contents;
+      if (!htmlText) {
+        throw new Error("No HTML content in proxy response.");
+      }
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlText, 'text/html');
+      if (!doc.querySelector('.timeline')) {
+        throw new Error(`No timeline found: ${url}`);
+      }
       return doc;
     }
 
+    // Render a tweet
     function renderTweet(tweet) {
-      const el = document.createElement('article');
-      el.className = 'bg-white p-5 rounded-xl shadow-sm border border-gray-200';
+      const tweetElement = document.createElement('article');
+      tweetElement.className = 'bg-white p-5 rounded-xl shadow-sm border border-gray-200';
+      
+      const formattedDate = tweet.pubDate.toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
 
-      const pubDate = new Date(tweet.pubDate);
-      const formattedDate = !isNaN(pubDate)
-        ? pubDate.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-        : 'Invalid date';
-
-      el.innerHTML = `
+      tweetElement.innerHTML = `
         <div class="flex items-center gap-3 mb-3">
-          <img src="${tweet.authorAvatar}" class="w-10 h-10 rounded-full bg-gray-200" 
-               onerror="this.onerror=null;this.src='https://placehold.co/40x40/e2e8f0/64748b?text=${tweet.username.charAt(0).toUpperCase()}';" />
+          <img src="${tweet.authorAvatar}" class="w-10 h-10 rounded-full bg-gray-200" onerror="this.src='https://placehold.co/40x40/e2e8f0/64748b?text=${tweet.username.charAt(0).toUpperCase()}';"/>
           <div>
             <p class="font-bold text-gray-900">${tweet.authorName}</p>
-            <a href="${nitterInstance}/${tweet.username}" target="_blank" 
-               rel="noopener noreferrer" class="text-sm text-gray-500 hover:underline">@${tweet.username}</a>
+            <a href="${nitterInstance}/${tweet.username}" target="_blank" rel="noopener noreferrer" class="text-sm text-gray-500 hover:underline">@${tweet.username}</a>
           </div>
         </div>
         <div class="tweet-content text-gray-800">${tweet.descriptionHTML}</div>
@@ -90,89 +116,120 @@
           <a href="${tweet.link}" target="_blank" rel="noopener noreferrer" class="hover:underline">${formattedDate}</a>
         </div>
       `;
-      return el;
+      return tweetElement;
     }
 
+    // Render the feed based on current length
+    function renderFeed() {
+      feedContainer.innerHTML = '';
+      const tweetsToDisplay = allTweets.slice(0, feedLength);
+      if (tweetsToDisplay.length > 0) {
+        const tweetElements = tweetsToDisplay.map(renderTweet);
+        feedContainer.append(...tweetElements);
+      } else {
+        feedContainer.innerHTML = `
+          <div class="bg-yellow-50 text-yellow-800 p-4 rounded-lg">
+            <p class="font-bold">No posts found.</p>
+            <p>Users may not have posted recently or feeds failed to load.</p>
+          </div>`;
+      }
+      statusContainer.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+    }
+
+    // Load and display the feed
     async function loadFeed() {
-      const maxTweets = parseInt(feedLengthInput.value, 10) || 20;
       feedContainer.innerHTML = `
         <div class="flex items-center justify-center py-10">
           <div class="spinner w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
           <p class="ml-4 text-gray-600">Fetching latest posts...</p>
         </div>`;
       statusContainer.textContent = '';
+      
+      allTweets = [];
+      let errorMessages = [];
 
-      const allTweets = [];
-      const errors = [];
-
-      await Promise.all(usernames.map(async user => {
+      const fetchPromises = usernames.map(async (user) => {
         try {
-          const doc = await fetchAndParseHTML(`${nitterInstance}/${user}`);
+          const feedUrl = `${nitterInstance}/${user}`;
+          const doc = await fetchAndParseHTML(feedUrl);
+          
           const authorName = doc.querySelector('.profile-card-fullname')?.textContent.trim() || user;
-          let avatar = doc.querySelector('.profile-avatar')?.src || '';
-          if (avatar.startsWith('/')) avatar = nitterInstance + avatar;
+          let authorAvatar = doc.querySelector('.profile-avatar')?.src || '';
+          if (authorAvatar.startsWith('/')) {
+            authorAvatar = nitterInstance + authorAvatar;
+          }
 
           doc.querySelectorAll('.timeline-item').forEach(item => {
-            const contentEl = item.querySelector('.tweet-content');
+            const tweetContentEl = item.querySelector('.tweet-content');
             const attachmentsEl = item.querySelector('.attachments');
-            if (!contentEl) return;
+            if (!tweetContentEl) return;
 
-            // Fix relative URLs
-            [contentEl, attachmentsEl].forEach(el => {
-              if (!el) return;
-              el.querySelectorAll('a, img, video, source').forEach(node => {
-                const attr = node.hasAttribute('href') ? 'href' : 'src';
-                const val = node.getAttribute(attr);
-                if (val && val.startsWith('/')) node.setAttribute(attr, nitterInstance + val);
-                if (node.tagName === 'A') node.target = '_blank', node.rel = 'noopener noreferrer';
+            const fixUrls = (element) => {
+              if (!element) return;
+              element.querySelectorAll('a, img, video, source').forEach(el => {
+                const attr = el.hasAttribute('href') ? 'href' : 'src';
+                const url = el.getAttribute(attr);
+                if (url && url.startsWith('/')) {
+                  el.setAttribute(attr, nitterInstance + url);
+                }
+                if (el.tagName === 'A') {
+                  el.target = '_blank';
+                  el.rel = 'noopener noreferrer';
+                }
               });
-            });
+            };
 
-            const attachmentHTML = attachmentsEl
-              ? `<div class="attachments">${attachmentsEl.innerHTML}</div>`
-              : '';
+            fixUrls(tweetContentEl);
+            fixUrls(attachmentsEl);
+            
+            const descriptionHTML = tweetContentEl.innerHTML + (attachmentsEl ? attachmentsEl.innerHTML : '');
+
+            const pubDateStr = item.querySelector('.tweet-date a')?.getAttribute('title') || '';
+            let pubDate;
+            try {
+              pubDate = new Date(pubDateStr);
+              if (isNaN(pubDate.getTime())) throw new Error('Invalid date');
+            } catch {
+              pubDate = new Date();
+            }
 
             allTweets.push({
               username: user,
-              authorName,
-              authorAvatar: avatar,
+              authorName: authorName,
+              authorAvatar: authorAvatar,
               link: nitterInstance + (item.querySelector('.tweet-link')?.getAttribute('href') || `/${user}`),
-              pubDate: item.querySelector('.tweet-date a')?.getAttribute('title') || new Date().toISOString(),
-              descriptionHTML: contentEl.innerHTML + attachmentHTML
+              pubDate: pubDate,
+              descriptionHTML: descriptionHTML,
             });
           });
-        } catch (e) {
-          console.error(`Error loading @${user}:`, e);
-          errors.push(`⚠️ @${user}: ${e.message}`);
+        } catch (error) {
+          console.error(`Failed to load @${user}:`, error);
+          errorMessages.push(`⚠️ Failed to load @${user}: ${error.message}`);
         }
-      }));
-
-      feedContainer.innerHTML = '';
-      if (allTweets.length) {
-        allTweets.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
-        allTweets.slice(0, maxTweets)
-          .map(renderTweet)
-          .forEach(el => feedContainer.appendChild(el));
-      }
-
-      errors.forEach(msg => {
-        const errEl = document.createElement('div');
-        errEl.className = 'bg-red-50 text-red-700 p-4 rounded-lg';
-        errEl.textContent = msg;
-        feedContainer.prepend(errEl);
       });
 
-      if (!feedContainer.children.length) {
-        feedContainer.innerHTML = `
-          <div class="bg-yellow-50 text-yellow-800 p-4 rounded-lg">
-            <p class="font-bold">No posts found.</p>
-            <p>Users may not have recent posts or an error occurred.</p>
-          </div>`;
-      }
+      await Promise.all(fetchPromises);
 
-      statusContainer.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+      allTweets.sort((a, b) => b.pubDate - a.pubDate);
+      renderFeed();
+
+      if (errorMessages.length > 0) {
+        errorMessages.forEach(msg => {
+          const errorElement = document.createElement('div');
+          errorElement.className = 'bg-red-50 text-red-700 p-4 rounded-lg';
+          errorElement.textContent = msg;
+          feedContainer.prepend(errorElement);
+        });
+      }
     }
 
+    // Update feed length and re-render
+    feedLengthSelect.addEventListener('change', () => {
+      feedLength = parseInt(feedLengthSelect.value, 10);
+      renderFeed();
+    });
+
+    // Initial load
     window.onload = loadFeed;
   </script>
 </body>
