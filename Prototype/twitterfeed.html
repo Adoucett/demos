@@ -45,7 +45,7 @@
           <option value="50">50 tweets</option>
           <option value="100">100 tweets</option>
         </select>
-        <button onclick="loadFeed()" class="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+        <button onclick="loadFeed(true)" class="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
             <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
             <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
@@ -57,6 +57,11 @@
 
     <div id="status" class="mb-4 text-sm text-gray-500"></div>
     <main id="feed" class="space-y-6"></main>
+    <div id="loadMoreContainer" class="mt-6 text-center">
+      <button id="loadMore" class="px-6 py-3 bg-blue-500 text-white rounded-lg shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors hidden" onclick="loadMoreTweets()">
+        Load More
+      </button>
+    </div>
   </div>
 
   <script>
@@ -68,8 +73,11 @@
     const feedContainer = document.getElementById('feed');
     const statusContainer = document.getElementById('status');
     const feedLengthSelect = document.getElementById('feedLength');
+    const loadMoreButton = document.getElementById('loadMore');
+    const loadMoreContainer = document.getElementById('loadMoreContainer');
     let feedLength = parseInt(feedLengthSelect.value, 10);
     let allTweets = [];
+    let userCursors = {}; // Store pagination cursors for each user
 
     // Fetch and parse Nitter HTML
     async function fetchAndParseHTML(url) {
@@ -134,82 +142,102 @@
           </div>`;
       }
       statusContainer.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+      // Show/hide Load More button
+      const hasMoreTweets = Object.values(userCursors).some(cursor => cursor !== null);
+      loadMoreButton.classList.toggle('hidden', !hasMoreTweets);
     }
 
-    // Load and display the feed
-    async function loadFeed() {
+    // Fetch tweets for a user (with optional cursor)
+    async function fetchUserTweets(user, cursor = null) {
+      try {
+        const feedUrl = cursor ? `${nitterInstance}/${user}?cursor=${cursor}` : `${nitterInstance}/${user}`;
+        const doc = await fetchAndParseHTML(feedUrl);
+        
+        const authorName = doc.querySelector('.profile-card-fullname')?.textContent.trim() || user;
+        let authorAvatar = doc.querySelector('.profile-avatar')?.src || '';
+        if (authorAvatar.startsWith('/')) {
+          authorAvatar = nitterInstance + authorAvatar;
+        }
+
+        const tweets = [];
+        doc.querySelectorAll('.timeline-item').forEach(item => {
+          const tweetContentEl = item.querySelector('.tweet-content');
+          const attachmentsEl = item.querySelector('.attachments');
+          if (!tweetContentEl) return;
+
+          const fixUrls = (element) => {
+            if (!element) return;
+            element.querySelectorAll('a, img, video, source').forEach(el => {
+              const attr = el.hasAttribute('href') ? 'href' : 'src';
+              const url = el.getAttribute(attr);
+              if (url && url.startsWith('/')) {
+                el.setAttribute(attr, nitterInstance + url);
+              }
+              if (el.tagName === 'A') {
+                el.target = '_blank';
+                el.rel = 'noopener noreferrer';
+              }
+            });
+          };
+
+          fixUrls(tweetContentEl);
+          fixUrls(attachmentsEl);
+          
+          const descriptionHTML = tweetContentEl.innerHTML + (attachmentsEl ? attachmentsEl.innerHTML : '');
+
+          const pubDateStr = item.querySelector('.tweet-date a')?.getAttribute('title') || '';
+          let pubDate;
+          try {
+            pubDate = new Date(pubDateStr);
+            if (isNaN(pubDate.getTime())) throw new Error('Invalid date');
+          } catch {
+            pubDate = new Date();
+          }
+
+          tweets.push({
+            username: user,
+            authorName: authorName,
+            authorAvatar: authorAvatar,
+            link: nitterInstance + (item.querySelector('.tweet-link')?.getAttribute('href') || `/${user}`),
+            pubDate: pubDate,
+            descriptionHTML: descriptionHTML,
+          });
+        });
+
+        // Extract next cursor
+        const showMoreLink = doc.querySelector('.show-more a');
+        const nextCursor = showMoreLink ? new URL(showMoreLink.href, nitterInstance).searchParams.get('cursor') : null;
+
+        return { tweets, nextCursor };
+      } catch (error) {
+        console.error(`Failed to load @${user}:`, error);
+        return { tweets: [], nextCursor: null, error: `⚠️ Failed to load @${user}: ${error.message}` };
+      }
+    }
+
+    // Load initial or refreshed feed
+    async function loadFeed(isRefresh = false) {
+      if (isRefresh) {
+        allTweets = [];
+        userCursors = {};
+      }
       feedContainer.innerHTML = `
         <div class="flex items-center justify-center py-10">
           <div class="spinner w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
           <p class="ml-4 text-gray-600">Fetching latest posts...</p>
         </div>`;
       statusContainer.textContent = '';
+      loadMoreButton.disabled = true;
       
-      allTweets = [];
       let errorMessages = [];
-
       const fetchPromises = usernames.map(async (user) => {
-        try {
-          const feedUrl = `${nitterInstance}/${user}`;
-          const doc = await fetchAndParseHTML(feedUrl);
-          
-          const authorName = doc.querySelector('.profile-card-fullname')?.textContent.trim() || user;
-          let authorAvatar = doc.querySelector('.profile-avatar')?.src || '';
-          if (authorAvatar.startsWith('/')) {
-            authorAvatar = nitterInstance + authorAvatar;
-          }
-
-          doc.querySelectorAll('.timeline-item').forEach(item => {
-            const tweetContentEl = item.querySelector('.tweet-content');
-            const attachmentsEl = item.querySelector('.attachments');
-            if (!tweetContentEl) return;
-
-            const fixUrls = (element) => {
-              if (!element) return;
-              element.querySelectorAll('a, img, video, source').forEach(el => {
-                const attr = el.hasAttribute('href') ? 'href' : 'src';
-                const url = el.getAttribute(attr);
-                if (url && url.startsWith('/')) {
-                  el.setAttribute(attr, nitterInstance + url);
-                }
-                if (el.tagName === 'A') {
-                  el.target = '_blank';
-                  el.rel = 'noopener noreferrer';
-                }
-              });
-            };
-
-            fixUrls(tweetContentEl);
-            fixUrls(attachmentsEl);
-            
-            const descriptionHTML = tweetContentEl.innerHTML + (attachmentsEl ? attachmentsEl.innerHTML : '');
-
-            const pubDateStr = item.querySelector('.tweet-date a')?.getAttribute('title') || '';
-            let pubDate;
-            try {
-              pubDate = new Date(pubDateStr);
-              if (isNaN(pubDate.getTime())) throw new Error('Invalid date');
-            } catch {
-              pubDate = new Date();
-            }
-
-            allTweets.push({
-              username: user,
-              authorName: authorName,
-              authorAvatar: authorAvatar,
-              link: nitterInstance + (item.querySelector('.tweet-link')?.getAttribute('href') || `/${user}`),
-              pubDate: pubDate,
-              descriptionHTML: descriptionHTML,
-            });
-          });
-        } catch (error) {
-          console.error(`Failed to load @${user}:`, error);
-          errorMessages.push(`⚠️ Failed to load @${user}: ${error.message}`);
-        }
+        const { tweets, nextCursor, error } = await fetchUserTweets(user);
+        if (error) errorMessages.push(error);
+        allTweets.push(...tweets);
+        userCursors[user] = nextCursor;
       });
 
       await Promise.all(fetchPromises);
-
       allTweets.sort((a, b) => b.pubDate - a.pubDate);
       renderFeed();
 
@@ -221,6 +249,40 @@
           feedContainer.prepend(errorElement);
         });
       }
+      loadMoreButton.disabled = false;
+    }
+
+    // Load more tweets
+    async function loadMoreTweets() {
+      loadMoreButton.disabled = true;
+      feedContainer.appendChild(document.createElement('div')).innerHTML = `
+        <div class="flex items-center justify-center py-6">
+          <div class="spinner w-6 h-6 border-3 border-blue-500 border-t-transparent rounded-full"></div>
+          <p class="ml-3 text-gray-600">Loading more posts...</p>
+        </div>`;
+      
+      let errorMessages = [];
+      const fetchPromises = usernames.map(async (user) => {
+        if (userCursors[user] === null) return;
+        const { tweets, nextCursor, error } = await fetchUserTweets(user, userCursors[user]);
+        if (error) errorMessages.push(error);
+        allTweets.push(...tweets);
+        userCursors[user] = nextCursor;
+      });
+
+      await Promise.all(fetchPromises);
+      allTweets.sort((a, b) => b.pubDate - a.pubDate);
+      renderFeed();
+
+      if (errorMessages.length > 0) {
+        errorMessages.forEach(msg => {
+          const errorElement = document.createElement('div');
+          errorElement.className = 'bg-red-50 text-red-700 p-4 rounded-lg';
+          errorElement.textContent = msg;
+          feedContainer.prepend(errorElement);
+        });
+      }
+      loadMoreButton.disabled = false;
     }
 
     // Update feed length and re-render
@@ -230,7 +292,7 @@
     });
 
     // Initial load
-    window.onload = loadFeed;
+    window.onload = () => loadFeed();
   </script>
 </body>
 </html>
