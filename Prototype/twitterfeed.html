@@ -185,14 +185,21 @@
           
           const descriptionHTML = tweetContentEl.innerHTML + (attachmentsEl ? attachmentsEl.innerHTML : '');
 
-          const pubDateStr = item.querySelector('.tweet-date a')?.getAttribute('title') || '';
-          let pubDate;
-          try {
-            pubDate = new Date(pubDateStr);
-            if (isNaN(pubDate.getTime())) throw new Error('Invalid date');
-          } catch {
-            pubDate = new Date();
-          }
+function parseTweetDate(item) {
+  const dateLink = item.querySelector('.tweet-date a');
+  let dateStr = dateLink?.getAttribute('title');
+  if (dateStr) {
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) return d;
+  }
+  dateStr = dateLink?.textContent?.trim();
+  if (dateStr) {
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return new Date();
+}
+const pubDate = parseTweetDate(item);
 
           tweets.push({
             username: user,
