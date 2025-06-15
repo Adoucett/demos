@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Satellite Trajectory & AOI Tracker</title>
+
+    <!-- External Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/dist/satellite.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden; /* Prevent scrollbars from appearing */
+        }
+        /* Custom Leaflet popup styles */
+        .leaflet-popup-content-wrapper {
+            background-color: #1f2937; /* bg-gray-800 */
+            color: #f3f4f6; /* text-gray-200 */
+            border-radius: 0.5rem; /* rounded-lg */
+            border: 1px solid #4b5563; /* border-gray-600 */
+        }
+        .leaflet-popup-content {
+            margin: 1rem;
+            font-size: 0.875rem; /* text-sm */
+        }
+        .leaflet-popup-tip {
+             background-color: #1f2937;
+        }
+        .leaflet-popup-close-button {
+            color: #f3f4f6 !important;
+        }
+        .legend {
+            padding: 6px 8px;
+            font: 14px/16px Arial, Helvetica, sans-serif;
+            background: rgba(255,255,255,0.8);
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            border-radius: 5px;
+        }
+        .legend i {
+            width: 18px;
+            height: 18px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex h-screen">
+
+    <!-- Control Panel -->
+    <div class="w-1/4 max-w-sm h-full bg-gray-800 p-6 shadow-2xl z-10 overflow-y-auto flex flex-col">
+        <div class="flex-grow">
+            <h1 class="text-2xl font-bold text-cyan-400 mb-1">Satellite Tracker</h1>
+            <p class="text-sm text-gray-400 mb-6">Visualize satellite paths and predict AOI intersections.</p>
+
+            <!-- AOI Upload -->
+            <div class="mb-6">
+                <label for="aoi-file" class="block text-sm font-medium text-gray-300 mb-2">1. Upload AOI GeoJSON</label>
+                <input type="file" id="aoi-file" accept=".json,.geojson" class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-cyan-500 file:text-white hover:file:bg-cyan-600 cursor-pointer">
+                <p id="aoi-status" class="text-xs text-gray-500 mt-2">No file selected.</p>
+            </div>
+
+            <!-- TLE Fetch -->
+            <div class="mb-6">
+                 <label class="block text-sm font-medium text-gray-300 mb-2">2. Load Planet TLEs</label>
+                 <button id="fetch-tles-button" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-md shadow-lg transition-all duration-300">
+                    Fetch Latest Planet TLEs
+                </button>
+                <p id="tle-status" class="text-xs text-gray-500 mt-2">TLEs not yet loaded.</p>
+            </div>
+
+            <!-- Satellite Filter -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-300 mb-2">3. Filter Constellation</label>
+                <div id="satellite-filter" class="space-y-2 text-sm">
+                    <div><label><input type="radio" name="sat-type" value="ALL" checked class="mr-2 text-cyan-600 bg-gray-700 border-gray-600 focus:ring-cyan-500">All</label></div>
+                    <div><label><input type="radio" name="sat-type" value="SKYSAT" class="mr-2 text-cyan-600 bg-gray-700 border-gray-600 focus:ring-cyan-500">SkySat</label></div>
+                    <div><label><input type="radio" name="sat-type" value="FLOCK" class="mr-2 text-cyan-600 bg-gray-700 border-gray-600 focus:ring-cyan-500">Flock (Doves)</label></div>
+                    <div><label><input type="radio" name="sat-type" value="PELICAN" class="mr-2 text-cyan-600 bg-gray-700 border-gray-600 focus:ring-cyan-500">Pelican</label></div>
+                     <div><label><input type="radio" name="sat-type" value="TANAGER" class="mr-2 text-cyan-600 bg-gray-700 border-gray-600 focus:ring-cyan-500">Tanager</label></div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Action Button -->
+        <div class="mt-auto">
+            <button id="track-button" class="w-full bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-500 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-md shadow-lg transition-all duration-300" disabled>
+                4. Track Satellites
+            </button>
+        </div>
+    </div>
+
+    <!-- Map Container -->
+    <div id="map" class="w-3/4 h-full"></div>
+
+    <script>
+        // --- LEAFLET & MAP SETUP ---
+        const map = L.map('map').setView([20, 0], 2);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+
+        // --- GLOBAL STATE ---
+        let aoiGeoJSON = null;
+        let fetchedTleData = '';
+        let satelliteLayers = L.layerGroup().addTo(map);
+        let intersectionLayers = L.layerGroup().addTo(map);
+        let aoiLayer = L.layerGroup().addTo(map);
+        let satIntervals = [];
+
+        // --- UI ELEMENT REFERENCES ---
+        const aoiFileInput = document.getElementById('aoi-file');
+        const aoiStatus = document.getElementById('aoi-status');
+        const fetchTlesButton = document.getElementById('fetch-tles-button');
+        const tleStatus = document.getElementById('tle-status');
+        const trackButton = document.getElementById('track-button');
+        const filterContainer = document.getElementById('satellite-filter');
+
+        // --- MAP LEGEND ---
+        const legend = L.control({ position: 'bottomright' });
+        legend.onAdd = function (map) {
+            const div = L.DomUtil.create('div', 'info legend bg-gray-800 text-gray-300 p-4 rounded-md border border-gray-600');
+            const items = {
+                'Current Position': '#fde047', // yellow-300
+                'Past Track': '#f87171', // red-400
+                'Future Track': '#60a5fa', // blue-400
+                'AOI': '#4ade80', // green-400
+                'Intersection': '#fb923c' // orange-400
+            };
+             div.innerHTML += '<h4 class="font-bold mb-2">Legend</h4>';
+            for (const key in items) {
+                 div.innerHTML += `<div class="flex items-center mb-1"><i class="w-4 h-4 mr-2 rounded-full" style="background:${items[key]}"></i><span>${key}</span></div>`;
+            }
+            return div;
+        };
+        legend.addTo(map);
+
+        // --- EVENT LISTENERS ---
+        aoiFileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) {
+                aoiGeoJSON = null;
+                aoiStatus.textContent = 'No file selected.';
+                aoiStatus.classList.remove('text-green-400');
+                aoiStatus.classList.add('text-gray-500');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    aoiGeoJSON = JSON.parse(e.target.result);
+                    if (!aoiGeoJSON.type || !aoiGeoJSON.features) throw new Error("Invalid GeoJSON format");
+                    aoiStatus.textContent = `✅ Loaded: ${file.name}`;
+                    aoiStatus.classList.add('text-green-400');
+                } catch (error) {
+                    aoiGeoJSON = null;
+                    aoiStatus.textContent = `❌ Error: ${error.message}`;
+                    aoiStatus.classList.add('text-red-400');
+                    alert("Failed to parse GeoJSON. Please check the file format.");
+                }
+            };
+            reader.readAsText(file);
+        });
+        
+        fetchTlesButton.addEventListener('click', async () => {
+            fetchTlesButton.disabled = true;
+            fetchTlesButton.textContent = 'Fetching...';
+            tleStatus.textContent = 'Fetching TLEs from CelesTrak...';
+
+            // Using a CORS proxy to bypass browser restrictions on fetching from certain URLs.
+            const tleUrl = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=planet&FORMAT=tle';
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(tleUrl)}`;
+
+            try {
+                const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
+                fetchedTleData = await response.text();
+                tleStatus.textContent = `✅ TLEs loaded successfully. Ready to track.`;
+                tleStatus.classList.add('text-green-400');
+                trackButton.disabled = false;
+            } catch (error) {
+                console.error('Failed to fetch TLEs:', error);
+                tleStatus.textContent = `❌ Error fetching TLEs. Check console for details.`;
+                tleStatus.classList.add('text-red-400');
+                alert(`Could not fetch TLE data. You may be rate-limited or the service may be down. Error: ${error.message}`);
+            } finally {
+                fetchTlesButton.disabled = false;
+                fetchTlesButton.textContent = 'Fetch Latest Planet TLEs';
+            }
+        });
+
+        trackButton.addEventListener('click', () => {
+            runSimulation();
+        });
+
+
+        // --- CORE LOGIC ---
+
+        function parseTLEs() {
+            if (!fetchedTleData) return [];
+
+            const lines = fetchedTleData.split('\n').map(l => l.trim()).filter(l => l);
+            const satellites = [];
+            const filterType = filterContainer.querySelector('input[name="sat-type"]:checked').value;
+
+            for (let i = 0; i < lines.length; i += 3) {
+                const name = lines[i];
+                 if (lines[i+1]?.startsWith('1 ') && lines[i+2]?.startsWith('2 ')) {
+                     const satData = { name, tle1: lines[i + 1], tle2: lines[i + 2] };
+
+                    if (filterType === 'ALL' || name.includes(filterType)) {
+                        satellites.push(satData);
+                    }
+                }
+            }
+            return satellites;
+        }
+
+        function runSimulation() {
+            if (!fetchedTleData) {
+                alert("Please fetch the TLE data first using the button.");
+                return;
+            }
+
+            trackButton.disabled = true;
+            trackButton.textContent = 'Processing...';
+
+            satelliteLayers.clearLayers();
+            intersectionLayers.clearLayers();
+            aoiLayer.clearLayers();
+            satIntervals.forEach(clearInterval);
+            satIntervals = [];
+
+            const satellites = parseTLEs();
+            if (satellites.length === 0) {
+                alert("No satellites match the current filter.");
+                trackButton.disabled = false;
+                trackButton.textContent = '4. Track Satellites';
+                return;
+            }
+
+            if (aoiGeoJSON) {
+                const aoiMapLayer = L.geoJSON(aoiGeoJSON, {
+                    style: { color: "#4ade80", weight: 2, opacity: 0.8, fillOpacity: 0.2 }
+                }).bindPopup((layer) => layer.feature.properties.name || 'Area of Interest');
+                aoiLayer.addLayer(aoiMapLayer);
+            }
+
+            satellites.forEach(sat => processSatellite(sat));
+
+            trackButton.disabled = false;
+            trackButton.textContent = '4. Track Satellites';
+        }
+
+        function processSatellite(sat) {
+            try {
+                const satrec = satellite.twoline2satrec(sat.tle1, sat.tle2);
+                
+                const now = new Date();
+                const pastPoints = [];
+                const futurePoints = [];
+                const timeStepMinutes = 1;
+                const orbitMinutes = 95;
+
+                for (let i = -orbitMinutes; i <= orbitMinutes; i += timeStepMinutes) {
+                    const time = new Date(now.getTime() + i * 60 * 1000);
+                    const positionAndVelocity = satellite.propagate(satrec, time);
+                    if (positionAndVelocity.position) {
+                        const gmst = satellite.gstime(time);
+                        const positionGd = satellite.eciToGeodetic(positionAndVelocity.position, gmst);
+                        const point = [satellite.degreesLong(positionGd.longitude), satellite.degreesLat(positionGd.latitude)];
+                        
+                        if(i > -orbitMinutes && Math.abs(point[0] - (i < 0 ? pastPoints[pastPoints.length -1][0] : futurePoints[futurePoints.length-1]?.[0] ?? pastPoints[pastPoints.length-1][0])) > 180){
+                        } else {
+                            if (i < 0) pastPoints.push(point);
+                            else futurePoints.push(point);
+                        }
+                    }
+                }
+
+                if (pastPoints.length < 2 || futurePoints.length < 2) {
+                    console.error(`Could not propagate sufficient points for ${sat.name}`);
+                    return;
+                }
+                
+                const pastLine = turf.lineString(pastPoints);
+                const futureLine = turf.lineString(futurePoints);
+
+                L.geoJSON(pastLine, { style: { color: '#f87171', weight: 2, opacity: 0.8 } })
+                    .bindPopup(`<b>${sat.name}</b><br>Past Track`)
+                    .addTo(satelliteLayers);
+
+                const futureLineLayer = L.geoJSON(futureLine, { style: { color: '#60a5fa', weight: 2, opacity: 0.8, dashArray: '5, 5' } })
+                    .bindPopup(`<b>${sat.name}</b><br>Future Track`)
+                    .addTo(satelliteLayers);
+
+                if (aoiGeoJSON) {
+                    const intersection = turf.lineIntersect(futureLine, aoiGeoJSON);
+                    if (intersection.features.length > 0) {
+                        futureLineLayer.setStyle({ color: '#fb923c', weight: 4 });
+
+                        intersection.features.forEach(intersectPoint => {
+                            const pointOnLine = turf.nearestPointOnLine(futureLine, intersectPoint);
+                            const index = pointOnLine.properties.index;
+                            const intersectionTime = new Date(now.getTime() + index * timeStepMinutes * 60 * 1000);
+                            
+                            L.circleMarker(intersectPoint.geometry.coordinates.reverse(), {
+                                radius: 8,
+                                color: '#fb923c',
+                                fillColor: '#fde047',
+                                fillOpacity: 0.8,
+                                weight: 2
+                            })
+                            .bindPopup(`<b>Intersection: ${sat.name}</b><br>Est. Time: ${intersectionTime.toUTCString()}<br>Coords: ${intersectPoint.geometry.coordinates[1].toFixed(4)}, ${intersectPoint.geometry.coordinates[0].toFixed(4)}`)
+                            .addTo(intersectionLayers);
+                        });
+                    }
+                }
+                
+                const currentMarker = createCurrentPositionMarker(satrec, sat.name);
+                satelliteLayers.addLayer(currentMarker);
+                const intervalId = setInterval(() => {
+                    updateCurrentPosition(currentMarker, satrec);
+                }, 5000);
+                satIntervals.push(intervalId);
+
+            } catch (error) {
+                console.error(`Failed to process satellite ${sat.name}:`, error);
+            }
+        }
+
+        function createCurrentPositionMarker(satrec, name) {
+            const position = getSatPosition(satrec, new Date());
+             const icon = L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div style='background-color:#fde047;' class='w-4 h-4 rounded-full border-2 border-white shadow-lg'></div>`,
+                iconSize: [16, 16],
+                iconAnchor: [8, 8]
+            });
+            return L.marker([position.lat, position.lng], { icon: icon })
+                .bindPopup(`<b>${name}</b><br>Current Position`);
+        }
+        
+        function updateCurrentPosition(marker, satrec){
+             const position = getSatPosition(satrec, new Date());
+             marker.setLatLng([position.lat, position.lng]);
+        }
+        
+        function getSatPosition(satrec, time) {
+            const positionAndVelocity = satellite.propagate(satrec, time);
+            const gmst = satellite.gstime(time);
+            const positionGd = satellite.eciToGeodetic(positionAndVelocity.position, gmst);
+            return {
+                lat: satellite.degreesLat(positionGd.latitude),
+                lng: satellite.degreesLong(positionGd.longitude)
+            };
+        }
+
+    </script>
+</body>
+</html>

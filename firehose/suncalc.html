@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Day/Night Map (Fixed)</title>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css" rel="stylesheet" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Roboto Mono', monospace;
+            background-color: #0a0a0a;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+        .info-panel {
+            position: absolute;
+            background: rgba(20, 20, 20, 0.9);
+            padding: 12px 18px;
+            border-radius: 6px;
+            z-index: 1;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.6);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(8px);
+        }
+        .legend {
+            bottom: 30px;
+            left: 20px;
+        }
+        .legend h4 { margin: 0 0 12px; font-size: 14px; color: #fff; }
+        .legend div { display: flex; align-items: center; }
+        .legend span { width: 16px; height: 16px; border-radius: 3px; margin-right: 10px; border: 1px solid rgba(255,255,255,0.3); }
+
+        .time-display {
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            padding: 10px 20px;
+        }
+        .time-display .date { font-size: 13px; color: #b0b0b0; }
+        .time-display .time { font-size: 22px; font-weight: 500; color: #fff; }
+        .time-display .label { font-size: 11px; color: #909090; }
+
+        .time-controls {
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+        }
+        .time-controls button {
+            background: rgba(50, 50, 50, 0.85);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+        }
+        .time-controls button:hover { background: rgba(80, 80, 80, 0.95); }
+        .time-controls button:active { background: rgba(100, 100, 100, 1); }
+
+        .celestial-info {
+            top: 20px;
+            right: 20px;
+            width: 300px;
+        }
+        .celestial-info h5 { margin: 0 0 8px; font-size: 14px; border-bottom: 1px solid #444; padding-bottom: 4px; }
+        .celestial-info p { margin: 4px 0; font-size: 12px; }
+        .celestial-info .label { color: #a0a0a0; width: 90px; display: inline-block; }
+        .mapboxgl-marker { font-size: 28px; text-shadow: 0 0 6px rgba(0,0,0,0.8); }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="legend" class="info-panel legend">
+    <h4>Day/Night Map</h4>
+    <div><span style="background-color: rgba(0, 10, 26, 0.75);"></span>Night (Nautical Twilight & Beyond)</div>
+</div>
+
+<div id="time-display" class="info-panel time-display">
+    <div id="date-str" class="date">Loading...</div>
+    <div id="time-str" class="time">--:--:--</div>
+    <div class="label">UTC</div>
+</div>
+
+<div class="info-panel time-controls">
+    <button onclick="adjustTime(-24 * 3600 * 1000)">-1d</button>
+    <button onclick="adjustTime(-3600 * 1000)">-1h</button>
+    <button onclick="adjustTime(-600 * 1000)">-10m</button>
+    <button onclick="adjustTime(0, true)">Now</button>
+    <button onclick="adjustTime(600 * 1000)">+10m</button>
+    <button onclick="adjustTime(3600 * 1000)">+1h</button>
+    <button onclick="adjustTime(24 * 3600 * 1000)">+1d</button>
+</div>
+
+<div class="info-panel celestial-info">
+    <h5>☀️ Sun Position</h5>
+    <p><span class="label">Latitude:</span> <span id="sun-lat">--</span></p>
+    <p><span class="label">Longitude:</span> <span id="sun-lon">--</span></p>
+    <p><span class="label">Speed:</span> <span id="sun-speed">--</span> km/h</p>
+    <h5 style="margin-top: 12px;">🌕 Moon Position</h5>
+    <p><span class="label">Latitude:</span> <span id="moon-lat">--</span></p>
+    <p><span class="label">Longitude:</span> <span id="moon-lon">--</span></p>
+    <p><span class="label">Speed:</span> <span id="moon-speed">--</span> km/h</p>
+</div>
+
+<script>
+    mapboxgl.accessToken = 'pk.eyJ1IjoiYWRvdWNldHQiLCJhIjoiY2lvZDFsc2lwMDRnd3Zha2pneWpxcHh6biJ9.sbWgw2zPGyScsp-r4CYQnA';
+    const map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/satellite-streets-v12',
+        center: [0, 20],
+        zoom: 1.2,
+        projection: 'globe',
+        antialias: true
+    });
+
+    const R = Math.PI / 180;
+    function toRadians(d) { return d * R; }
+    function toDegrees(r) { return r / R; }
+
+    function getSubsolarPoint(date) {
+        const jd = date.getTime() / 86400000 + 2440587.5; // Julian Day
+        const T = (jd - 2451545.0) / 36525; // Julian centuries since J2000
+        const M = toRadians((357.5291 + 35999.05030 * T) % 360); // Mean anomaly
+        const L = toRadians((280.46646 + 36000.76983 * T) % 360); // Mean longitude
+        const e = 0.016708634 - 0.000042037 * T; // Eccentricity
+        const C = toRadians(1.914602 * Math.sin(M) + 0.019993 * Math.sin(2 * M)); // Equation of center
+        const lambda = (L + C) % (2 * Math.PI); // True longitude
+        const epsilon = toRadians(23.439291 - 0.0130042 * T); // Obliquity
+        const declination = toDegrees(Math.asin(Math.sin(epsilon) * Math.sin(lambda)));
+        const GMST = 18.697374558 + 24.06570982441908 * T;
+        const gmstHours = (GMST + (date.getUTCHours() + date.getUTCMinutes()/60 + date.getUTCSeconds()/3600) * 1.002737909) % 24;
+        const alpha = toDegrees(Math.atan2(Math.cos(epsilon) * Math.sin(lambda), Math.cos(lambda)));
+        let longitude = (gmstHours * 15) - alpha;
+        longitude = ((longitude + 180) % 360) - 180;
+        console.log(`Subsolar Point: lat=${declination.toFixed(2)}, lng=${(-longitude).toFixed(2)} at ${date.toISOString()}`);
+        return { lat: declination, lng: -longitude };
+    }
+
+    function getSublunarPoint(date) {
+        const jc = (date.getTime() / 86400000 - 10957.5) / 36525;
+        const L = 218.316 + 13.176396 * jc * 36525;
+        const M = 134.963 + 13.064993 * jc * 36525;
+        const F = 93.272 + 13.229350 * jc * 36525;
+        const lambda = L + 6.289 * Math.sin(toRadians(M));
+        const beta = 5.128 * Math.sin(toRadians(F));
+        const sub_lat = beta;
+        const n = (date.getTime() / 86400000) - 10957.5;
+        const GMST = (18.697374558 + 24.06570982441908 * (n/36525)) % 24;
+        const gmstHours = GMST + (date.getUTCHours() + date.getUTCMinutes()/60 + date.getUTCSeconds()/3600) * 1.002737909;
+        let sub_lon = gmstHours * 15 - lambda;
+        sub_lon = ((sub_lon + 180) % 360) - 180;
+        return { lat: sub_lat, lng: -sub_lon };
+    }
+
+    function createInverseCircle(center, radiusInDegrees, points = 360) {
+        const centerRad = { latitude: toRadians(center.lat), longitude: toRadians(center.lng) };
+        const dist = (radiusInDegrees / 360) * 2 * Math.PI;
+        const circlePoints = [];
+        for (let i = 0; i < points; i++) {
+            const bearing = toRadians(i * (360 / points));
+            const lat = Math.asin(Math.sin(centerRad.latitude) * Math.cos(dist) + Math.cos(centerRad.latitude) * Math.sin(dist) * Math.cos(bearing));
+            let lng = centerRad.longitude + Math.atan2(Math.sin(bearing) * Math.sin(dist) * Math.cos(centerRad.latitude), Math.cos(dist) - Math.sin(centerRad.latitude) * Math.sin(lat));
+            lng = ((lng + Math.PI) % (2 * Math.PI)) - Math.PI;
+            circlePoints.push([toDegrees(lng), toDegrees(lat)]);
+        }
+        circlePoints.reverse();
+        const fullGlobe = [
+            [-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]
+        ];
+        return {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [fullGlobe, circlePoints.concat([circlePoints[0]])]
+            }
+        };
+    }
+
+    let serverTime, clientStartTime, timeOffset = 0;
+    function adjustTime(ms, absolute = false) {
+        if (absolute) { timeOffset = 0; } else { timeOffset += ms; }
+    }
+
+    map.on('load', async () => {
+        map.setFog({
+            'range': [0.5, 10],
+            'color': 'rgba(50, 50, 50, 0.8)',
+            'horizon-blend': 0.1
+        });
+        map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.5 });
+
+        try {
+            const response = await fetch('https://worldtimeapi.org/api/timezone/Etc/UTC', { signal: AbortSignal.timeout(5000) });
+            const data = await response.json();
+            serverTime = new Date(data.utc_datetime);
+            console.log(`Time synced: ${serverTime.toISOString()}`);
+        } catch (error) {
+            console.warn("Time sync failed, using client time:", error);
+            serverTime = new Date();
+        }
+        clientStartTime = performance.now();
+
+        const sunEl = document.createElement('div'); sunEl.textContent = '☀️';
+        const moonEl = document.createElement('div'); moonEl.textContent = '🌕';
+        const sunMarker = new mapboxgl.Marker(sunEl).setLngLat([0, 0]).addTo(map);
+        const moonMarker = new mapboxgl.Marker(moonEl).setLngLat([0, 0]).addTo(map);
+
+        map.addSource('night', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+        map.addLayer({
+            'id': 'night-layer',
+            'type': 'fill',
+            'source': 'night',
+            'paint': { 'fill-color': 'rgba(0, 10, 26, 0.75)', 'fill-opacity': 1 }
+        });
+
+        let lastUpdate = 0;
+        function updateOverlays(timestamp) {
+            if (timestamp - lastUpdate < 16) {
+                requestAnimationFrame(updateOverlays);
+                return;
+            }
+            lastUpdate = timestamp;
+
+            const elapsed = performance.now() - clientStartTime;
+            const now = new Date(serverTime.getTime() + elapsed + timeOffset);
+
+            document.getElementById('date-str').textContent = now.toISOString().slice(0, 10);
+            document.getElementById('time-str').textContent = now.toISOString().slice(11, 19);
+
+            const subsolarPoint = getSubsolarPoint(now);
+            const sublunarPoint = getSublunarPoint(now);
+
+            sunMarker.setLngLat([subsolarPoint.lng, subsolarPoint.lat]);
+            moonMarker.setLngLat([sublunarPoint.lng, sublunarPoint.lat]);
+
+            document.getElementById('sun-lat').textContent = subsolarPoint.lat.toFixed(2) + '°';
+            document.getElementById('sun-lon').textContent = subsolarPoint.lng.toFixed(2) + '°';
+            document.getElementById('sun-speed').textContent = (40075 * Math.cos(toRadians(subsolarPoint.lat)) / 24).toFixed(0);
+
+            document.getElementById('moon-lat').textContent = sublunarPoint.lat.toFixed(2) + '°';
+            document.getElementById('moon-lon').textContent = sublunarPoint.lng.toFixed(2) + '°';
+            document.getElementById('moon-speed').textContent = (40075 * Math.cos(toRadians(sublunarPoint.lat)) / 24).toFixed(0);
+
+            const nightPolygon = createInverseCircle(subsolarPoint, 96);
+            map.getSource('night').setData(nightPolygon);
+
+            requestAnimationFrame(updateOverlays);
+        }
+        requestAnimationFrame(updateOverlays);
+    });
+</script>
+
+</body>
+</html>

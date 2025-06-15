@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>Planet Firehose (AOI Monitor)</title>
+
+        <!-- libs -->
+        <script src="https://d3js.org/d3.v7.min.js"></script>
+
+        <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet" />
+
+
+        <style>
+            body,
+            html {
+                font-family: Montserrat, sans-serif;
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+            *,
+            *:before,
+            *:after {
+                box-sizing: inherit;
+            }
+            h1 {
+                text-align: center;
+                color: #009da5;
+                font-size: 2.5rem;
+                margin: 1.5rem 0;
+            }
+            .lead {
+                text-align: center;
+                font-size: 1.25rem;
+                margin-bottom: 3rem;
+            }
+            .ui {
+                max-width: 640px;
+                margin: auto auto 3rem;
+                background: #f8f9fa;
+                padding: 20px;
+                border-radius: 8px;
+                border: 1px solid #dee2e6;
+            }
+            .flex {
+                display: flex;
+                gap: 20px;
+            }
+            .column {
+                flex: 1;
+            }
+            input[type="text"],
+            input[type="number"],
+            select {
+                width: 100%;
+            }
+            button {
+                margin-top: 24px;
+                width: 100%;
+                font-size: 1.1rem;
+                padding: 12px;
+                background: #009da5;
+                border-radius: 4px;
+                border: 2px solid #01848c;
+                color: #fff;
+                cursor: pointer;
+            }
+            button:disabled {
+                background: #ccc;
+                border-color: #aaa;
+                cursor: not-allowed;
+            }
+            .tile-container {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 2rem;
+            }
+            .tile {
+                flex-basis: 512px;
+                background: #fff;
+                border: 5px solid transparent;
+                border-radius: 8px;
+                padding: 10px;
+                position: relative;
+            }
+            .tile.new-item {
+                border-color: #28a745;
+            }
+            .tile.aoi-match {
+                border-color: #dc3545;
+                box-shadow: 0 0 20px rgba(220, 53, 69, 0.5);
+            }
+            .thumbnail-container {
+                width: 100%;
+                height: 512px;
+                background: #e9ecef;
+            }
+            .thumbnail-container img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+            .tile-info {
+                text-align: center;
+                margin-bottom: 1rem;
+            }
+            .tile-id a {
+                color: #009da5;
+                text-decoration: none;
+                font-weight: 600;
+            }
+            .aoi-flag {
+                position: absolute;
+                top: -15px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #dc3545;
+                color: #fff;
+                padding: 4px 12px;
+                border-radius: 14px;
+                font-weight: 600;
+            }
+            .nav-buttons {
+                display: flex;
+                gap: 1rem;
+                margin-top: 1rem;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Planet Firehose AOI Monitor</h1>
+        <p class="lead">Fresh imagery flagged against your high-priority AOIs.</p>
+
+        <!-- ---------- UI panel ---------- -->
+        <div class="ui">
+            <div class="ui-input">
+                <label class="aoi-upload-label">
+                    1. Upload AOI file (optional)
+                    <input type="file" id="aoi-file" accept=".json,.geojson" />
+                </label>
+                <small id="aoi-status">No file selected</small>
+            </div>
+            <hr />
+            <div class="ui-input">
+                <label>2. Planet API Key*<input id="api-key" type="text" placeholder="paste key" /></label>
+            </div>
+            <div class="flex">
+                <div class="column">
+                    <div class="ui-input">
+                        <label>
+                            3. Country
+                            <select id="country-select">
+                                <option value="">--loading--</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="ui-input">
+                        <label>
+                            Item type<br />
+                            <input type="radio" name="type" value="SkySatCollect" checked />SkySatCollect <input type="radio" name="type" value="PSScene" />PSScene
+                        </label>
+                    </div>
+                </div>
+                <div class="column">
+                    <label class="ui-input">
+                        Max cloud cover
+                        <input id="cloud" type="number" min="0" max="1" step="0.01" value="0.3" />
+                    </label>
+                    <label class="ui-input">
+                        Skip hours
+                        <input id="skip" type="number" min="0" step="0.5" value="24" />
+                    </label>
+                </div>
+            </div>
+            <button id="go">4. Start monitoring</button>
+            <label style="display: block; margin-top: 1rem;"> <input type="checkbox" id="hits-only" /> Only show AOI hits 🔥 </label>
+            
+<label style="display:block;margin-top:1rem;">
+  Notifications:
+  <select id="sound-mode">
+    <option value="all">🔊 All new images</option>
+    <option value="hits">🔥 AOI hits only</option>
+    <option value="none">🔕 None</option>
+  </select>
+</label>
+
+<audio id="alert-sound" src="notify.mp3" preload="auto"></audio>
+        </div>
+
+        <!-- ---------- results ---------- -->
+        <div id="tiles" class="tile-container"></div>
+        <div class="ui" style="background: none; border: none; padding: 0;">
+            <div id="nav" class="nav-buttons" style="display: none;">
+                <button id="prev" disabled>Previous</button>
+                <button id="next" disabled>Next</button>
+            </div>
+        </div>
+
+        <script>
+            /* ======= GLOBAL STATE ======= */
+            let apiKey = "",
+                aoi = null,
+                countries = {},
+                selCountry = null;
+            let links = [],
+                page = 0,
+                seen = new Set(),
+                poll = null;
+            const INTERVAL = 60_000;
+            const tilesDiv = document.getElementById("tiles");
+            const auth = () => ({ Authorization: "Basic " + btoa(apiKey + ":") });
+            // const rewind = self.geojsonRewind.default ?? self.rewind;
+
+            /* ======= RELATIVE TIME HELPER ======= */
+            const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+            function relativeTime(dateStr) {
+                const date = new Date(dateStr),
+                    diff = date - Date.now();
+                const seconds = diff / 1000,
+                    minutes = seconds / 60,
+                    hours = minutes / 60,
+                    days = hours / 24;
+                if (Math.abs(days) >= 1) return rtf.format(Math.round(days), "day");
+                if (Math.abs(hours) >= 1) return rtf.format(Math.round(hours), "hour");
+                if (Math.abs(minutes) >= 1) return rtf.format(Math.round(minutes), "minute");
+                return rtf.format(Math.round(seconds), "second");
+            }
+
+            /* ======= UI HANDLERS ======= */
+            document.getElementById("aoi-file").onchange = (e) => {
+                const f = e.target.files[0];
+                if (!f) {
+                    aoi = null;
+                    return;
+                }
+                const r = new FileReader();
+                r.onload = (ev) => {
+                    try {
+                        const g = JSON.parse(ev.target.result);
+                        if (g.type !== "FeatureCollection") throw Error("not a FeatureCollection");
+                        aoi = g;
+                        document.getElementById("aoi-status").textContent = `✅ ${f.name}`;
+                    } catch (err) {
+                        aoi = null;
+                        alert(err.message);
+                    }
+                };
+                r.readAsText(f);
+            };
+
+            document.getElementById("country-select").onchange = (e) => {
+                selCountry = e.target.value ? countries.features[+e.target.value] : null;
+            };
+
+            document.getElementById("go").onclick = () => {
+                apiKey = document.getElementById("api-key").value.trim();
+                if (!apiKey) {
+                    alert("API key required");
+                    return;
+                }
+                if (poll) clearInterval(poll);
+                tilesDiv.innerHTML = "<h4>Loading first page…</h4>";
+                queryPlanet(true);
+                poll = setInterval(() => queryPlanet(false), INTERVAL);
+            };
+
+            document.getElementById("prev").onclick = () => navigate(-1);
+            document.getElementById("next").onclick = () => navigate(1);
+
+            /* ======= COUNTRY LIST ======= */
+            fetch("https://raw.githubusercontent.com/Adoucett/worldmap/refs/heads/main/lib/assets/ne_110m_admin_0_countries_planet_geo.json")
+                .then((r) => r.json())
+                .then((json) => {
+                    countries = json;
+                    const sel = document.getElementById("country-select");
+                    sel.innerHTML = '<option value="">--any--</option>';
+                    json.features
+                        .sort((a, b) => a.properties.ADMIN.localeCompare(b.properties.ADMIN))
+                        .forEach((c, i) => {
+                            sel.insertAdjacentHTML("beforeend", `<option value="${i}">${c.properties.ADMIN}</option>`);
+                        });
+                });
+
+            /* ======= SEARCH & DISPLAY ======= */
+            function buildFilters() {
+                const item = document.querySelector('input[name="type"]:checked').value;
+                const max = parseFloat(document.getElementById("cloud").value);
+                const skip = parseFloat(document.getElementById("skip").value) * 3600 * 1000;
+                const gte = new Date(Date.now() - skip).toISOString().slice(0, -5) + "Z";
+                const hitsOnly = document.getElementById("hits-only").checked;
+
+                const baseFilter = {
+                    type: "AndFilter",
+                    config: [
+                        {
+                            type: "OrFilter",
+                            config: [
+                                {
+                                    type: "AndFilter",
+                                    config: [
+                                        { type: "StringInFilter", field_name: "item_type", config: [item] },
+                                        { type: "RangeFilter", field_name: "cloud_cover", config: { gte: 0, lte: max } },
+                                        { type: "RangeFilter", field_name: "sun_elevation", config: { gte: 0, lte: 90 } },
+                                        { type: "DateRangeFilter", field_name: "published", config: { gte } },
+                                    ],
+                                },
+                            ],
+                        },
+                        { type: "PermissionFilter", config: ["assets:download"] },
+                    ],
+                };
+
+                // 🌍 Apply a spatial filter if AOI is loaded and hitsOnly is checked
+                if (hitsOnly && aoi) {
+                    const geometries = aoi.features.map((f) => f.geometry);
+
+                    // If more than one geometry, wrap as MultiPolygon or MultiPoint etc.:
+                    let combinedGeometry;
+                    if (geometries.length === 1) {
+                        combinedGeometry = geometries[0]; // just use the one geometry directly
+                    } else {
+                        // Normalize to MultiPolygon (safest bet for AOIs)
+                        combinedGeometry = {
+                            type: "MultiPolygon",
+                            coordinates: geometries.flatMap((g) => {
+                                if (g.type === "Polygon") return [g.coordinates];
+                                if (g.type === "MultiPolygon") return g.coordinates;
+                                return []; // skip unsupported types
+                            }),
+                        };
+                    }
+
+                    // Now push to filter
+                    baseFilter.config.push({
+                        type: "GeometryFilter",
+                        field_name: "geometry",
+                        config: combinedGeometry,
+                    });
+                }
+                // 🗺️ Otherwise use country filter
+                else if (selCountry) {
+                    baseFilter.config.push({
+                        type: "GeometryFilter",
+                        field_name: "geometry",
+                        config: selCountry.geometry,
+                    });
+                }
+
+                return {
+                    filter: baseFilter,
+                    item_types: [item],
+                };
+            }
+
+            async function fetchPlanet(url, opts) {
+                opts = opts || {};
+                const res = await fetch(url, { ...opts, headers: { "Content-Type": "application/json", ...auth() } });
+                if (!res.ok) throw Error(await res.text());
+                return res.json();
+            }
+
+            async function queryPlanet(initial, url) {
+                try {
+                    const data = url ? await fetchPlanet(url) : await fetchPlanet("https://api.planet.com/data/v1/quick-search?_sort=published desc&_page_size=12", { method: "POST", body: JSON.stringify(buildFilters()) });
+                    if (initial) {
+                        links = [data._links._self, data._links._next];
+                        page = 0;
+                        seen.clear();
+                        data.features.forEach((f) => seen.add(f.id));
+                        render(data.features, false);
+                    } else {
+                        const fresh = data.features.filter((f) => !seen.has(f.id));
+                        fresh.forEach((f) => seen.add(f.id));
+                        if (fresh.length) render(fresh, true);
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert("Planet API error – see console");
+                    clearInterval(poll);
+                }
+            }
+
+async function render(list, prepend) {
+  const hitsOnly = document.getElementById("hits-only").checked;
+ // const soundToggle = document.getElementById("sound-toggle").checked;
+  const frag = document.createDocumentFragment();
+
+  if (!prepend) tilesDiv.innerHTML = "";
+
+  for (const sc of list) {
+    const isHit = aoi && intersects(sc.geometry);
+
+    // Skip non-AOI matches if 'hits only' is checked
+    if (hitsOnly && !isHit) continue;
+
+    const card = document.createElement("div");
+    card.className = "tile";
+    if (isHit) card.classList.add("aoi-match");
+    if (prepend) card.classList.add("new-item");
+
+    // 🔔 Play sound if it's a new AOI match and sound is enabled
+const soundMode = document.getElementById("sound-mode").value;
+
+if (prepend && soundMode !== "none") {
+  const playSound = 
+    soundMode === "all" || (soundMode === "hits" && isHit);
+  if (playSound) {
+    try {
+      const sound = document.getElementById("alert-sound");
+      if (sound) {
+        sound.currentTime = 0;
+        await sound.play();
+      }
+    } catch (err) {
+      console.warn("Sound alert failed:", err);
+    }
+  }
+}
+
+    card.innerHTML = `
+      ${isHit ? '<span class="aoi-flag">AOI Match</span>' : ""}
+      <div class="tile-info">
+        <div class="tile-id"><a target="_blank"
+          href="https://www.planet.com/explorer/?item=${sc.properties.item_type}::${sc.id}">${sc.id}</a></div>
+        <div class="tile-location">…</div>
+        <div class="publish-time">${relativeTime(sc.properties.published)}</div>
+      </div>
+      <div class="thumbnail-container"><img alt=""></div>
+    `;
+
+    frag.appendChild(card);
+    loadThumb(card.querySelector("img"), sc._links.thumbnail);
+    loadPlacename(card.querySelector(".tile-location"), sc.geometry);
+  }
+
+  if (frag.children.length === 0 && !prepend) {
+    tilesDiv.innerHTML = `<h4>No matching imagery${hitsOnly ? " for AOI hits" : ""}.</h4>`;
+  } else {
+    prepend ? tilesDiv.prepend(frag) : tilesDiv.appendChild(frag);
+  }
+
+  document.getElementById("nav").style.display = "flex";
+  updateNav();
+}
+
+            async function navigate(step) {
+                page += step;
+                const url = links[page];
+                const data = await fetchPlanet(url);
+                render(data.features, false);
+                if (step > 0 && data._links._next && !links.includes(data._links._next)) links.push(data._links._next);
+                updateNav();
+            }
+            function updateNav() {
+                prev.disabled = page === 0;
+                next.disabled = !links[page + 1];
+            }
+
+            function intersects(geom) {
+                if (!aoi) return false;
+                return aoi.features.some((f) => {
+                    try {
+                        return turf.booleanIntersects(geom, f.geometry);
+                    } catch {
+                        return false;
+                    }
+                });
+            }
+            async function loadThumb(img, url) {
+                try {
+                    const res = await fetch(url + "?width=512", { headers: auth() });
+                    img.src = URL.createObjectURL(await res.blob());
+                } catch {
+                    img.src = url;
+                }
+            }
+            async function loadPlacename(el, geom) {
+                const [lng, lat] = d3.geoCentroid(geom);
+                const mb = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=pk.eyJ1Ijoicm9wZSIsImEiOiJjbHFkczVmazQwZmR5MmlwajFkdzI0bmFtIn0._pwUTta-8YiQ_psSp1Ot9A`;
+                try {
+                    const j = await fetch(mb).then((r) => r.json());
+                    el.textContent =
+                        (j.features.find((x) => x.place_type.includes("place")) || j.features.find((x) => x.place_type.includes("region")) || j.features.find((x) => x.place_type.includes("country")) || {}).place_name || "loc. n/a";
+                } catch {
+                    el.textContent = "loc. n/a";
+                }
+            }
+        </script>
+    </body>
+</html>
