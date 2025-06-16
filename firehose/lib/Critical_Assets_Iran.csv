@@ -1,0 +1,209 @@
+Site,Map_Icon,Type,Latitude,Longitude,Branch_Art,Provincial,CityBody
+South Pars Gas Refineries,Gas Refinery,Energy,27.49924502,52.60354219,,Bushehr,
+Jam Gas Refinery,Gas Refinery,Energy,27.93255476,52.20093594,,Bushehr,
+Sarkhoun and Gheshm Gas Refinery,Gas Refinery,Energy,27.33998794,56.42835253,,Hormozgan,
+Hengam Gas Refinery,Gas Refinery,Energy,26.84715128,55.84606954,,Hormozgan,
+Masjed Soleiman Gas Refinery,Gas Refinery,Energy,31.90580114,49.26666559,,Khuzestan,
+Bid Boland Gas Refinery,Gas Refinery,Energy,30.76161124,49.97824052,,Khuzestan,
+Khangiran Gas Refinery,Gas Refinery,Energy,36.47040922,60.84663011,,Khorasan Razavi,
+Esfahan Oil Refinery,Oil Refinery,Energy,32.77769482,51.50939095,,Esfahan,Esfahan City
+Tehran Oil Refinery,Oil Refinery,Energy,35.53741321,51.42578915,,Tehran,Tehran City
+Takran Pars Oil Refinery,Oil Refinery,Energy,35.31702345,51.33967498,,Tehran,
+Kharg Island Oil Refinery,Oil Refinery,Energy,29.23574552,50.30867296,,Bushehr,
+Lavan Oil Refinery,Oil Refinery,Energy,26.799749,53.34874745,,Hormozgan,
+Pasargad Gheshm Heavy Oil Refinery,Oil Refinery,Energy,26.9099454,55.93673203,,Hormozgan,
+Persian Gulf Star Oil Refinery,Oil Refinery,Energy,27.16189788,56.05213804,,Hormozgan,
+Aftab Oil Refinery,Oil Refinery,Energy,27.0524989,55.93798736,,Hormozgan,
+Siri Island Oil Refinery,Oil Refinery,Energy,25.905133,54.5374336,,Hormozgan,
+Tabriz Oil Refinery,Oil Refinery,Energy,38.05598791,46.16025814,,East Azerbaijan,
+Abadan Oil Refinery,Oil Refinery,Energy,30.3525421,48.27861568,,Khuzestan,
+Aran Exir Oil Refinery,Oil Refinery,Energy,30.50486981,49.09238163,,Khuzestan,
+Andimeshk Oil Refinery,Oil Refinery,Energy,32.46933638,48.34883993,,Khuzestan,
+Shahed Aviation Industries Production Facility,Drone Facility,Military,32.62341073,51.69468632,,Esfahan,Esfahan City
+IRGC ASF Shahid Karimi Drone Base,Drone Facility,Military,33.89126874,51.57690231,,Esfahan,
+Iran Aircraft Manufacturing Industrial Company,Drone Facility,Military,32.90812139,51.55629563,,Esfahan,
+Kimia Part Sivan Company,Drone Facility,Military,32.66681577,51.84164172,,Esfahan,Esfahan City
+Iran Aviation Industries Organization,Drone Facility,Military,35.70164306,51.28270529,,Tehran,Tehran City
+Qods Aviation Industries,Drone Facility,Military,35.70201526,51.28199247,,Tehran,Tehran City
+Mado Company,Drone Facility,Military,34.79752525,50.80401292,,Qom,
+IRGC Mahidasht Drone Base,Drone Facility,Military,34.32550488,46.77117421,,Kermanshah,
+Bandar-e Abbas Airport IRGC Drone base,Drone Facility,Military,27.20535479,56.36573099,,Hormozgan,
+IRGC Drone Base,Drone Facility,Military,26.70077546,55.94830168,,Hormozgan,
+IRGC ASF Ali Akbar Drone Base,Drone Facility,Military,31.57134619,48.673914,,Khuzestan,Ahvaz
+Semnan Drone Base,Drone Facility,Military,35.39526059,53.68206677,,Semnan,
+Konarak Drone Base,Drone Facility,Military,25.3326506,60.35630534,,Sistan and Baluchistan,Chabahar
+IRGC GF Seyyed ol Shohada Operational Base,Military Base,Military,32.64527138,51.67055768,IRGC,Esfahan,Esfahan City
+IRGC GF 8th Najaf-e Ashraf Armored Division,Military Base,Military,32.66172509,51.34371893,IRGC,Esfahan,Esfahan City
+IRGC GF 14th Imam Hossein Division,Military Base,Military,32.50464311,51.6911424,IRGC,Esfahan,Esfahan City
+IRGC GF Sarallah Operational Base,Military Base,Military,35.77917002,51.40177806,IRGC,Tehran,
+IRGC GF 27th Mohammad Rasoul Ollah Operational Division,Military Base,Military,35.66046826,51.55416259,IRGC,Tehran,Tehran City
+IRGC GF 23rd Khatam ol Anbia Operational Division,Military Base,Military,35.53818686,51.4856439,IRGC,Tehran,Tehran City
+IRGC QF Imam Ali Training Facility,Military Base,Military,35.75084981,51.12211452,IRGC,Tehran,Tehran City
+Artesh GF 23rd Commando Division,Military Base,Military,35.51204438,51.02313051,Artesh,Tehran,
+IRGC GF Najaf-e Ashraf Operational Base,Military Base,Military,34.35505051,47.20361276,IRGC,Kermanshah,Kermanshah City
+IRGC GF 29th Nabi Akram Operational Division,Military Base,Military,34.35566896,47.19912367,IRGC,Kermanshah,Kermanshah City
+Artesh GF West Regional Headquarters,Military Base,Military,34.33694245,47.09342322,Artesh,Kermanshah,Kermanshah City
+Artesh GF 81st Armored Division,Military Base,Military,34.29680182,47.06575668,Artesh,Kermanshah,Kermanshah City
+IRGC GF 10th Seyyed ol Shohada Operational Division,Military Base,Military,35.87952343,50.92508622,IRGC,Alborz,
+IRGC GF Madinah ol Munawarah Operational Base,Military Base,Military,27.37329965,56.33600491,IRGC,Hormozgan,
+IRGC GF 19th Fajr Operational Division,Military Base,Military,29.67150839,52.55953768,IRGC,Fars,Shiraz
+IRGC GF 31st Ashoura Mechanized Division,Military Base,Military,38.04677969,46.25890017,IRGC,East Azerbaijan,
+IRGC GF Ashoura Operational Base,Military Base,Military,38.04365402,46.27614073,IRGC,East Azerbaijan,
+Artesh GF 21st Infantry Division,Military Base,Military,38.06516259,46.29735937,Artesh,East Azerbaijan,
+IRGC GF Karbala Operational Base,Military Base,Military,31.32268277,48.73431562,IRGC,Khuzestan,Ahvaz
+IRGC GF 7th Vali-ye Asr Operational Division,Military Base,Military,31.41288765,48.62639252,IRGC,Khuzestan,Ahvaz
+Artesh GF Southwest Regional Headquarters,Military Base,Military,31.3818794,48.77549382,Artesh,Khuzestan,Ahvaz
+Artesh GF 92nd Armored Division,Military Base,Military,31.33139294,48.66551697,Artesh,Khuzestan,Ahvaz
+Artesh GF 84th Infantry Division,Military Base,Military,33.43120083,48.2748669,Artesh,Lorestan,
+Artesh GF 58th Commando Division,Military Base,Military,36.41213722,54.99231474,Artesh,Semnan,
+IRGC GF Quds Operational Base,Military Base,Military,29.48821651,60.86615746,IRGC,Sistan and Baluchistan,
+Artesh GF 88th Armored Division,Military Base,Military,29.4783747,60.86889355,Artesh,Sistan and Baluchistan,
+IRGC GF Samen ol Aemeh Operational Base,Military Base,Military,36.27195171,59.56681295,IRGC,Khorasan Razavi,Mashhad
+IRGC GF 5th Nasr Operational Division,Military Base,Military,36.21113608,59.61102658,IRGC,Khorasan Razavi,Mashhad
+Artesh GF Northeast Regional Headquarters,Military Base,Military,36.28308452,59.58976334,Artesh,Khorasan Razavi,Mashhad
+Artesh GF 77th Operational Division,Military Base,Military,36.27257339,59.5824878,Artesh,Khorasan Razavi,Mashhad
+IRGC GF 25th Karbala Operational Division,Military Base,Military,36.51974352,53.02074526,IRGC,Mazandaran,
+IRGC QF Malik Ashtar Brigade,Military Base,Military,36.39574113,52.31103771,IRGC,Mazandaran,
+IRGC GF 16th Quds Operational Division,Military Base,Military,37.2132921,49.6276198,IRGC,Gilan,
+IRGC GF Hamzeh Seyyed ol Shohada Operational Base,Military Base,Military,37.56454709,45.09184133,IRGC,West Azerbaijan,
+IRGC GF Imam Sajjad Operational Base,Military Base,Military,36.75907874,45.70793331,IRGC,West Azerbaijan,
+Artesh GF Northwest Regional Headquarters,Military Base,Military,37.54456758,45.05638296,Artesh,West Azerbaijan,
+Artesh GF 64th Infantry Division,Military Base,Military,37.54345293,45.06471488,Artesh,West Azerbaijan,
+IRGC GF 41st Sarallah Division,Military Base,Military,30.35012557,57.08940106,IRGC,Kerman,
+Artesh GF Southeast Regional Headquarters,Military Base,Military,30.28896187,57.07024474,Artesh,Kerman,
+Esfahan Missile Base,Missile Facility,Military,32.59092451,51.81612897,,Esfahan,Esfahan City
+Parchin Complex,Missile Facility,Military,35.56225054,51.78114208,,Tehran,
+Aerospace Industries Organization,Missile Facility,Military,35.78472217,51.47695311,,Tehran,Tehran City
+Moddarres Missile Base,Missile Facility,Military,35.62315834,50.91272632,,Tehran,
+Amir al Momenin Missile Launch Site,Missile Facility,Military,35.62387387,50.90276997,,Tehran,
+Malard Missile Launch Site,Missile Facility,Military,35.59459199,50.88796248,,Tehran,
+Imam Sajjad Missile Base,Missile Facility,Military,35.65541314,50.85286075,,Tehran,
+Khojir Military Complex,Missile Facility,Military,35.69011186,51.608721,,Tehran,Tehran City
+Shahid Bagheri Industrial Group,Missile Facility,Military,35.72314559,51.14868849,,Tehran,Tehran City
+Shahid Hemmat Industrial Group,Missile Facility,Military,35.73358331,51.6010977,,Tehran,Tehran City
+Bakhtaran (Panj Pelleh) Missile Base,Missile Facility,Military,34.35867404,47.23609418,,Kermanshah,Kermanshah City
+Konesht Canyon Missle Base,Missile Facility,Military,34.39548153,47.22221802,,Kermanshah,Kermanshah City
+Shahid Soltani Garrison,Missile Facility,Military,35.6790474,50.43345912,,Alborz,
+Chamran Missile Base,Missile Facility,Military,27.79170082,52.33195551,,Bushehr,
+IRGC Khorgu Missile Base,Missile Facility,Military,27.528179,56.45017759,,Hormozgan,
+IRGC Haji Abad Missile Base,Missile Facility,Military,28.32900698,55.94318402,,Hormozgan,
+IRGC Underground Drone and Missile Base,Missile Facility,Military,29.46150486,52.49075044,,Fars,Shiraz
+Imam Javad Missile Base,Missile Facility,Military,29.72365357,52.55887883,,Fars,Shiraz
+IRGC Amand Missile Base,Missile Facility,Military,38.24737424,46.12711419,,East Azerbaijan,
+Southwest Tabriz Missile Base,Missile Facility,Military,37.96996421,46.17001969,,East Azerbaijan,
+Masjed Soleiman Missile Base,Missile Facility,Military,32.0132143,49.27633119,,Khuzestan,
+Imam Ali Missile Base,Missile Facility,Military,33.54997603,48.18805074,,Lorestan,
+IRGC Navy 2nd Nouh-e Nabi Region,Navy Base,Military,28.8848274,50.83750599,IRGC,Bushehr,Bushehr City
+IRGC Navy 4th Sarallah Region,Navy Base,Military,27.34935626,52.62249444,IRGC,Bushehr,
+IRGC Navy Farsi Island Base,Navy Base,Military,27.99371929,50.17089037,IRGC,Bushehr,
+IRGC Ansar ol Hossein Navy Base,Navy Base,Military,27.83205635,51.92384569,IRGC,Bushehr,
+IRGC Navy 1st Saheb ol Zaman Region,Navy Base,Military,27.15559683,56.20296945,IRGC,Hormozgan,
+IRGC Navy 5th Imam Mohammad Bagher Region,Navy Base,Military,26.52452473,54.8058175,IRGC,Hormozgan,
+IRGC Gheshm Navy Base,Navy Base,Military,26.71985496,55.97010938,IRGC,Hormozgan,
+IRGC Abu Musa Island Navy Base,Navy Base,Military,25.8723878,55.0512645,IRGC,Hormozgan,
+IRGC Greater Tunb Island Navy Base,Navy Base,Military,26.2531127,55.30737485,IRGC,Hormozgan,
+Artesh Navy 2nd Naval District,Navy Base,Military,25.65025222,57.76774654,Artesh,Hormozgan,
+IRGC Navy Besat Base,Navy Base,Military,29.69907245,52.53266605,IRGC,Fars,Shiraz
+IRGC Navy Shahid Asari Nejad Base,Navy Base,Military,29.516463,52.59991522,IRGC,Fars,Shiraz
+IRGC Navy 3rd Imam Hossein Region,Navy Base,Military,30.49498404,49.20591042,IRGC,Khuzestan,
+IRGC Imam Ali Navy Base,Navy Base,Military,25.3399932,60.60959882,IRGC,Sistan and Baluchistan,Chabahar
+Artesh Navy 3rd Naval District,Navy Base,Military,25.29937,60.43205631,Artesh,Sistan and Baluchistan,Chabahar
+Artesh Pasabandar Navy Base,Navy Base,Military,25.06725499,61.40662718,Artesh,Sistan and Baluchistan,
+IRGC Samen ol Hojaj Navy Base,Navy Base,Military,36.69942307,52.60269145,IRGC,Mazandaran,
+Artesh Navy 4th Naval District,Navy Base,Military,37.46702604,49.46275555,Artesh,Gilan,
+IRGC Headquarters,Overall IRGC Headquarters,Military,35.69274461,51.49674436,,Tehran,Tehran City
+IRGC ASF Headquarters,Service Headquarters,Military,35.73187427,51.23860174,IRGC,Tehran,Tehran City
+IRGC GF Headquarters,Service Headquarters,Military,35.67830658,51.52240274,IRGC,Tehran,Tehran City
+IRGC Navy Headquarters,Service Headquarters,Military,35.70060487,51.50353908,IRGC,Tehran,Tehran City
+IRGC QF Headquarters,Service Headquarters,Military,35.81887147,51.41747854,IRGC,Tehran,Tehran City
+Artesh GF Headquarters,Service Headquarters,Military,35.79431427,51.50829218,Artesh,Tehran,Tehran City
+Artesh Navy Headquarters,Service Headquarters,Military,35.74865086,51.49031067,Artesh,Tehran,Tehran City
+Artesh GF Aviation Headquarters,Service Headquarters,Military,35.78559079,51.50986357,Artesh,Tehran,Tehran City
+IRGC Navy Headquarters,Service Headquarters,Military,27.15560705,56.20581422,IRGC,Hormozgan,
+IRGC ASF Ayatollah Kashani Air Base,Air Base,Military,33.87243483,51.4709924,IRGC,Esfahan,
+8th Artesh AF Base,Air Base,Military,32.77592962,51.84482908,Artesh,Esfahan,Esfahan City
+4th Artesh GF Aviation Base,Air Base,Military,32.61641471,51.68234318,Artesh,Esfahan,Esfahan City
+Artesh GF Shahid Vatanpour Aviation Base,Air Base,Military,32.56707514,51.69160473,Artesh,Esfahan,Esfahan City
+IRGC GF Fath Aviation Base,Air Base,Military,35.71157111,50.9345857,IRGC,Tehran,
+1st Artesh AF Base,Air Base,Military,35.68083718,51.3258817,Artesh,Tehran,Tehran City
+11th Artesh AF Base,Air Base,Military,35.70344763,51.47512223,Artesh,Tehran,Tehran City
+15th Artesh AF Base,Air Base,Military,34.35721957,47.17467091,Artesh,Kermanshah,Kermanshah City
+6th Artesh AF Base,Air Base,Military,28.93524302,50.85183618,Artesh,Bushehr,Bushehr City
+2nd Artesh Navy Aviation Base,Air Base,Military,28.91228218,50.85854185,Artesh,Bushehr,Bushehr City
+IRGC Navy Aviation Base,Air Base,Military,27.15651873,56.17721567,IRGC,Hormozgan,
+9th Artesh AF Fighter Base,Air Base,Military,27.23722834,56.38427634,Artesh,Hormozgan,
+Eagle 44 Underground Artesh Air Defense Force Base,Air Base,Military,28.04404112,55.51943602,Artesh,Hormozgan,
+IRGC GF Aviation Base,Air Base,Military,29.66872845,52.57313412,IRGC,Fars,Shiraz
+7th Artesh AF Base,Air Base,Military,29.55031593,52.57657871,Artesh,Fars,Shiraz
+2nd Artesh AF Base,Air Base,Military,38.126418,46.25598681,Artesh,East Azerbaijan,
+6th Artesh GF Aviation Base,Air Base,Military,38.1582893,46.21312782,Artesh,East Azerbaijan,
+IRGC ASF Shahid Assi Zadeh Base,Air Base,Military,31.46235964,48.60795309,IRGC,Khuzestan,Ahvaz
+4th Artesh AF Base,Air Base,Military,32.44239308,48.39218034,Artesh,Khuzestan,
+5th Artesh AF Base (Omidiyeh Air Base),Air Base,Military,30.83355775,49.54083439,Artesh,Khuzestan,
+2nd Artesh GF Aviation Base,Air Base,Military,31.99614745,49.27491878,Artesh,Khuzestan,
+Artesh Naval Aviation Base,Air Base,Military,30.1575958,48.41124397,Artesh,Khuzestan,
+IRGC GF Shahid Ali Arabi Aviation Base,Air Base,Military,29.46570806,60.89654538,IRGC,Sistan and Baluchistan,
+10th Artesh AF Base,Air Base,Military,25.42788987,60.38018383,Artesh,Sistan and Baluchistan,Chabahar
+5th Artesh GF Aviation Base,Air Base,Military,36.23719034,59.65394913,Artesh,Khorasan Razavi,Mashhad
+3rd Artesh GF Aviation Base,Air Base,Military,30.30290156,56.9587772,Artesh,Kerman,
+Khatam ol Anbia Air Defense Zone (Central),Air Defense Site,Military,32.58708586,51.70235245,,Esfahan,Esfahan City
+Khatam ol Anbia Air Defense Zone (Northern),Air Defense Site,Military,35.6910311,51.26703044,,Tehran,Tehran City
+Gahdir OTH Radar #8,Air Defense Site,Military,27.86406,51.6123,,Bushehr,
+Khatam ol Anbia Air Defense Zone (Southern),Air Defense Site,Military,28.92640628,50.84925238,,Bushehr,Bushehr City
+Gahdir OTH Radar #9,Air Defense Site,Military,26.39681,57.14256,,Hormozgan,
+Gahdir OTH Radar #7,Air Defense Site,Military,29.61725,52.04332,,Fars,
+Gahdir OTH Radar #4,Air Defense Site,Military,31.47289739,48.58188522,,Khuzestan,Ahvaz
+Khatam ol Anbia Air Defense Zone (Southwestern),Air Defense Site,Military,31.3778319,48.65336811,,Khuzestan,Ahvaz
+Gahdir OTH Radar #5,Air Defense Site,Military,35.13355,52.46938,,Semnan,
+Gahdir OTH Radar #6,Air Defense Site,Military,32.19031,55.60779,,Yazd,
+Gahdir OTH Radar #11,Air Defense Site,Military,25.25687,60.86084,,Sistan and Baluchistan,Chabahar
+Khatam ol Anbia Air Defense Zone (Northeastern),Air Defense Site,Military,36.2537336,59.62105945,,Khorasan Razavi,Mashhad
+Nazir OTH Radar #1,Air Defense Site,Military,36.84277571,50.38440193,,Gilan,
+Gahdir OTH Radar #1,Air Defense Site,Military,38.75656,44.95603,,West Azerbaijan,
+Gahdir OTH Radar #10,Air Defense Site,Military,28.092,58.96593,,Kerman,
+Esfahan Defense Industries Complex,Defense Industrial Facility,Military,32.3615798,51.2566438,,Esfahan,Esfahan City
+Defense and Armed Forces Logistics Ministry,Defense Industrial Facility,Military,35.73992352,51.4511064,,Tehran,Tehran City
+Defense Industries Organization,Defense Industrial Facility,Military,35.78365337,51.4717171,,Tehran,Tehran City
+Passive Defense Organization,Defense Industrial Facility,Military,35.74561445,51.46978034,,Tehran,Tehran City
+Defense Industries Organization,Defense Industrial Facility,Military,36.2269459,59.58509201,,Khorasan Razavi,Mashhad
+Natanz Enrichment Complex,Nuclear Facility,Nuclear Program,33.72620266,51.72718219,,Esfahan,
+7th of Tir Industrial Complex,Nuclear Facility,Nuclear Program,32.34202908,51.62883536,,Esfahan,
+Esfahan Nuclear Technology Center,Nuclear Facility,Nuclear Program,32.58064417,51.82633182,,Esfahan,Esfahan City
+Tehran Research Reactor,Nuclear Facility,Nuclear Program,35.7383,51.3881,,Tehran,Tehran City
+Sanjarian Site,Nuclear Facility,Nuclear Program,35.69142477,51.69987523,,Tehran,
+Organization of Defensive Innovation and Research (SPND),Nuclear Facility,Nuclear Program,35.75621668,51.45308684,,Tehran,Tehran City
+Atomic Energy Organization of Iran,Nuclear Facility,Nuclear Program,35.73904721,51.38801864,,Tehran,Tehran City
+Fordow Fuel Enrichment Plant,Nuclear Facility,Nuclear Program,34.88469448,50.99599328,,Qom,
+Lashkar Abad,Nuclear Facility,Nuclear Program,35.87321147,50.76356197,,Alborz,
+TESA Site,Nuclear Facility,Nuclear Program,35.90850497,50.85698164,,Alborz,
+Bandar Abbas Uranium Production Plant,Nuclear Facility,Nuclear Program,27.09667624,55.94902954,,Hormozgan,
+Abadeh Site,Nuclear Facility,Nuclear Program,31.36167878,52.56058871,,Fars,
+Heavy Water Reactor Facility,Nuclear Facility,Nuclear Program,34.37039006,49.24572249,,Markazi,
+Bonab Atomic Energy Research Center,Nuclear Facility,Nuclear Program,37.422467,46.012474,,East Azerbaijan,
+Ardakan Yellowcake Production Plant,Nuclear Facility,Nuclear Program,32.51996641,54.18221995,,Yazd,
+Saghand Uranium Mine,Nuclear Facility,Nuclear Program,32.51744108,55.58817649,,Yazd,
+Yazd Radiation Processing Center,Nuclear Facility,Nuclear Program,31.79073343,54.23917743,,Yazd,
+Bushehr Nuclear Power Plant,Power Plant,Nuclear Program,28.83043723,50.88629007,,Bushehr,Bushehr City
+Darkhovin Nuclear Power Plant,Power Plant,Nuclear Program,30.70803435,48.38160116,,Khuzestan,
+Kharg Island Export Terminal,Port,Port,29.23054328,50.33943716,,Bushehr,
+Farasakou Oil Terminal,Port,Port,27.59853159,52.49347481,,Bushehr,
+Bushehr Port,Port,Port,28.91911655,50.80575709,,Bushehr,Bushehr City
+Siraf Port,Port,Port,27.66064131,52.34818498,,Bushehr,
+Asaluyeh Port,Port,Port,27.47200657,52.59455412,,Bushehr,
+Lavan Port,Port,Port,26.78722137,53.34228522,,Hormozgan,
+Pasargad Oil Terminal,Port,Port,26.92648818,55.93552564,,Hormozgan,
+Siri Island Port,Port,Port,25.89529818,54.55125326,,Hormozgan,
+Rajaei Port,Port,Port,27.10289781,56.06401803,,Hormozgan,
+Kish Island Port,Port,Port,26.56707994,54.00371118,,Hormozgan,
+Bandar-e Jask Oil Export Terminal,Port,Port,25.85570556,57.28904342,,Hormozgan,
+Bandar-e Mahshahr Export Terminal,Port,Port,30.47237973,49.18238214,,Khuzestan,
+Khorramshahr Port,Port,Port,30.43681225,48.15057493,,Khuzestan,
+Imam Khomeini Port,Port,Port,30.42445175,49.09525454,,Khuzestan,
+Chabahar Port,Port,Port,25.29366846,60.60679751,,Sistan and Baluchistan,Chabahar
+Nowshahr Port,Port,Port,36.65385626,51.5055637,,Mazandaran,
+Neka Oil Terminal,Port,Port,36.84144103,53.27605562,,Mazandaran,
+Bandar-e Anzali Port,Port,Port,37.48061577,49.46599582,,Gilan,
+Iran Space Agency,Space Facility,Space,35.77607745,51.41865903,,Tehran,Tehran City
+Mahdasht Space Center,Space Facility,Space,35.76411059,50.78607562,,Alborz,
+Semnan Space Center,Space Facility,Space,35.23463341,53.92097339,,Semnan,
+Shahroud Space Center,Space Facility,Space,36.23447466,55.28348447,,Semnan,
