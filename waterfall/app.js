@@ -1,231 +1,291 @@
-// app.js
-// Minimal stub for your existing state; wire these to your real inputs
+/* ----------------------- UTIL ----------------------- */
 const $ = (id) => document.getElementById(id);
-const fmtUSD = (n, d=0) => (n||0).toLocaleString('en-US',{style:'currency',currency:'USD',minimumFractionDigits:d,maximumFractionDigits:d}); // :contentReference[oaicite:3]{index=3}
+const fmt = (n) => (isNaN(n)?0:n).toLocaleString('en-US',{maximumFractionDigits:0});
+const money = (n) => '$' + fmt(Math.round(n));
+const parseMoney = (s) => Number(String(s).replace(/[^0-9.-]/g,'')) || 0;
 
-/* 2025 constants (already in your previous build) */
-const STD_DED = { single: 14600, marriedFilingJointly: 29200, headOfHousehold: 21900 }; // update if your 2025 sheet changed
-const K401_LIMIT = { single: 23000, marriedFilingJointly: 46000, headOfHousehold: 23000 };
-const HSA_LIMIT   = { single:  4450, marriedFilingJointly:  8900, headOfHousehold: 4450 }; // 2025 baseline you used earlier
-
-// hook these to your real inputs; examples:
-const model = {
-  filingStatus: 'marriedFilingJointly',
-  state: 'CA',
-  earner1Salary: 120000,
-  earner1Bonus: 15000,
-  earner2Salary: 0,
-  earner2Bonus: 0,
-  otherIncome: 5000,
-  itemized: 0,
-  deductionType: 'standard',
-  tradK: 0,
-  rothK: 0,
-  hsa: 0
-};
-
-// enforce caps
-function clampContribs(){
-  const kmax = K401_LIMIT[model.filingStatus] || 0;
-  const total = model.tradK + model.rothK;
-  if (total > kmax){
-    // trim the one that was changed last; simplest is trim Roth
-    model.rothK = Math.max(0, kmax - model.tradK);
-  }
-  model.hsa = Math.min(model.hsa, HSA_LIMIT[model.filingStatus] || 0);
-  $('tradK').max = kmax; $('rothK').max = kmax; $('hsa').max = HSA_LIMIT[model.filingStatus] || 0;
-  $('tradKDisplay').textContent = fmtUSD(model.tradK);
-  $('rothKDisplay').textContent = fmtUSD(model.rothK);
-  $('hsaDisplay').textContent = fmtUSD(model.hsa);
+function on(id, type, handler){
+  const el = $(id);
+  if (!el) return null;
+  el.addEventListener(type, handler);
+  return el;
+}
+function syncTextAndRange(textId, rangeId, onChange){
+  const t = $(textId), r = $(rangeId);
+  if (!t || !r) return;
+  const clamp = () => {
+    let v = parseMoney(t.value);
+    v = Math.min(Math.max(v, parseFloat(r.min)||0), parseFloat(r.max)||1e12);
+    t.value = fmt(v); r.value = v; onChange();
+  };
+  r.addEventListener('input', ()=>{ t.value = fmt(r.value); onChange(); });
+  t.addEventListener('change', clamp);
+  t.addEventListener('blur', clamp);
+}
+function addDeltaChip(el, label, val){
+  const c = document.createElement('span');
+  c.className = 'pill delta';
+  c.textContent = label + ': ' + (val>=0?'+':'') + money(val);
+  el.appendChild(c);
 }
 
-/* Brackets: use your existing 2025 federal/state objects */
+/* ----------------------- STATE ----------------------- */
+let FED=null, STATES=null;
+let view='federal';
+let dedMode='standard';
+let baseline=null; // lock baseline
+
+/* ----------------------- LOAD DATA ----------------------- */
+async function loadAll(){
+  const [fed, states] = await Promise.all([
+    fetch('federal_2025.json').then(r=>r.json()),
+    fetch('states_2025.json').then(r=>r.json())
+  ]);
+  FED=fed; STATES=states;
+
+  // Populate states
+  const s = $('state');
+  Object.keys(STATES).sort((a,b)=>STATES[a].name.localeCompare(STATES[b].name))
+    .forEach(code=>{
+      const o=document.createElement('option');
+      o.value=code; o.textContent=STATES[code].name; s.appendChild(o);
+    });
+  s.value='CA';
+
+  // Labels
+  $('stdDedLabel').textContent = money(FED.standardDeduction.single);
+  updateKLimits();
+  bindUI();
+  recalc();
+}
+
+/* ----------------------- INPUT BINDINGS ----------------------- */
+function bindUI(){
+  [
+    ['e1SalaryText','e1Salary'], ['e1BonusText','e1Bonus'],
+    ['e2SalaryText','e2Salary'], ['e2BonusText','e2Bonus'],
+    ['otherOrdText','otherOrd'],
+    ['trad401kText','trad401k'], ['roth401kText','roth401k'],
+    ['hsaText','hsa'],
+    ['itemizedText','itemized'],
+    ['creditsText','credits'],
+  ].forEach(([t,r])=> syncTextAndRange(t,r, ()=>{ if(t==='trad401kText'||t==='roth401kText') syncKSliders(); recalc(); }));
+
+  on('viewFederal','click', ()=>{view='federal'; $('viewFederal').classList.add('btn-primary'); $('viewState').classList.remove('btn-primary'); recalc();});
+  on('viewState','click',  ()=>{view='state';   $('viewState').classList.add('btn-primary');  $('viewFederal').classList.remove('btn-primary'); recalc();});
+
+  on('dedStd','click', ()=>{dedMode='standard'; $('dedStd').classList.add('btn-primary'); $('dedItem').classList.remove('btn-primary'); recalc();});
+  on('dedItem','click', ()=>{dedMode='itemized'; $('dedItem').classList.add('btn-primary'); $('dedStd').classList.remove('btn-primary'); recalc();});
+
+  on('filingStatus','change', ()=>{
+    updateKLimits();
+    const fs=$('filingStatus').value;
+    if(fs==='marriedFilingJointly'){
+      $('earner2Box').classList.remove('hidden');
+      $('earner1Label').textContent='Earner 1';
+      $('hsa').max = 8550; $('hsaText').value = fmt(Math.min(parseMoney($('hsaText').value), 8550));
+    }else{
+      $('earner2Box').classList.add('hidden');
+      $('earner1Label').textContent='Earner 1';
+      ['e2Salary','e2Bonus'].forEach(id=>{$(id).value=0;});
+      ['e2SalaryText','e2BonusText'].forEach(id=>{$(id).value='0';});
+      $('hsa').max = 4300; $('hsaText').value = fmt(Math.min(parseMoney($('hsaText').value), 4300));
+    }
+    $('stdDedLabel').textContent = money(FED.standardDeduction[fs]);
+    syncKSliders();
+    recalc();
+  });
+  on('state','change', recalc);
+
+  on('lockBtn','click', ()=>{ baseline = compute(); $('lockInfo').classList.remove('hidden'); recalc(); });
+  on('clearLockBtn','click', ()=>{ baseline=null; $('lockInfo').classList.add('hidden'); $('deltaChips').innerHTML=''; recalc(); });
+
+  // Also keep k-sliders capped live
+  ['trad401k','trad401kText','roth401k','roth401kText'].forEach(id=>{
+    const el = $(id); if(el) el.addEventListener('input', ()=>{ syncKSliders(); recalc(); });
+  });
+}
+
+function updateKLimits(){
+  const fs = $('filingStatus').value;
+  const per = FED.contributionLimits.k401.employeeDeferral; // per earner
+  $('kLimitLabel').textContent = money(per) + ' per earner';
+  // set generous maxes; cap behavior handled in syncKSliders
+  $('trad401k').max = per * (fs==='marriedFilingJointly'?2:1);
+  $('roth401k').max = $('trad401k').max;
+  syncKSliders();
+}
+function syncKSliders(){
+  const per = FED.contributionLimits.k401.employeeDeferral;
+  const earners = $('filingStatus').value === 'marriedFilingJointly' ? 2 : 1;
+  const cap = per * earners;
+
+  const t = parseMoney($('trad401kText').value);
+  const r = parseMoney($('roth401kText').value);
+
+  $('roth401k').max = Math.max(0, cap - t);
+  if (t + r > cap) {
+    const newR = Math.max(0, cap - t);
+    $('roth401k').value = newR;
+    $('roth401kText').value = fmt(newR);
+  }
+}
+
+/* ----------------------- CORE TAX ----------------------- */
 function taxFromBrackets(taxable, brackets){
-  if(!brackets || !brackets.length) return 0;
-  let tax = 0, left = taxable, prev = 0;
+  if(!brackets || !brackets.length || taxable<=0) return {tax:0, layers:[]};
+  let tax=0, last=0, remain=taxable, layers=[];
   for(const b of brackets){
-    if(left <= 0) break;
-    const band = (isFinite(b.threshold) ? b.threshold : Infinity) - prev;
-    const take = Math.min(left, band);
-    tax += take * b.rate;
-    left -= take;
-    prev = b.threshold;
+    const size = (isFinite(b.threshold)?b.threshold:Infinity) - last;
+    const inBand = Math.max(0, Math.min(remain, size));
+    const t = inBand * b.rate;
+    tax += t;
+    layers.push({rate:b.rate, from:last, to:b.threshold, income:inBand, tax:t});
+    remain -= inBand;
+    last = b.threshold;
+    if(remain<=0) break;
   }
-  return Math.max(0, tax);
+  return {tax, layers};
 }
 
-// supply your real objects:
-const FED = window.taxAndDeductionData?.federal?.brackets || {/*...*/};
-const STATES = window.taxAndDeductionData?.states || {/*...*/};
+/* compute one model state */
+function compute(){
+  const fs = $('filingStatus').value;
+  const state = $('state').value;
 
-let locked = null;
+  const e1 = parseMoney($('e1SalaryText').value) + parseMoney($('e1BonusText').value);
+  const e2 = (fs==='marriedFilingJointly') ? (parseMoney($('e2SalaryText').value) + parseMoney($('e2BonusText').value)) : 0;
+  const other = parseMoney($('otherOrdText').value);
+  const totalIncome = e1 + e2 + other;
 
-function computeTotals(){
-  clampContribs();
+  const trad = parseMoney($('trad401kText').value);
+  const roth = parseMoney($('roth401kText').value); // not deductible
+  const hsa = parseMoney($('hsaText').value);
+  const aboveLine = trad + hsa;
+  const agi = Math.max(0, totalIncome - aboveLine);
 
-  const totalIncome =
-    model.earner1Salary + model.earner1Bonus +
-    model.earner2Salary + model.earner2Bonus +
-    model.otherIncome;
+  const std = FED.standardDeduction[fs];
+  const item = parseMoney($('itemizedText').value);
+  const deduction = (dedMode==='standard') ? std : item;
 
-  const stdOrItem = model.deductionType === 'standard'
-    ? STD_DED[model.filingStatus] || 0
-    : Math.max(0, model.itemized || 0);
+  const taxableOrd = Math.max(0, agi - deduction);
 
-  // pretax lowers taxable income: Trad 401k + HSA
-  const pretax = (model.tradK||0) + (model.hsa||0);
-  const agi = Math.max(0, totalIncome - pretax);
-  const taxable = Math.max(0, agi - stdOrItem);
+  const fed = taxFromBrackets(taxableOrd, FED.brackets[fs]);
+  const credits = parseMoney($('creditsText').value);
+  const fedAfterCredits = Math.max(0, fed.tax - credits);
 
-  const fedBr = FED[model.filingStatus] || [];
-  const stateBr = (STATES[model.state]?.brackets?.[model.filingStatus]) || [];
+  const stBr = STATES[state]?.brackets?.[fs] || [];
+  const stateTax = taxFromBrackets(taxableOrd, stBr).tax;
 
-  const fedTax = taxFromBrackets(taxable, fedBr);
-  const stateTax = taxFromBrackets(taxable, stateBr);
-  const totalTax = fedTax + stateTax;
+  const totalTax = fedAfterCredits + stateTax;
+  const eff = totalIncome>0 ? (totalTax/totalIncome*100) : 0;
 
-  // Baseline: no pretax, same gross, Roth unchanged (since Roth doesn’t reduce taxable)
-  const baselineTaxable = Math.max(0, (totalIncome) - stdOrItem);
-  const baselineFed = taxFromBrackets(baselineTaxable, fedBr);
-  const baselineState = taxFromBrackets(baselineTaxable, stateBr);
-  const baselineTotal = baselineFed + baselineState;
-
-  const pretaxSaved = Math.max(0, baselineTotal - totalTax);
-  const eff = totalIncome > 0 ? totalTax / totalIncome : 0;
-  const effBaseline = totalIncome > 0 ? baselineTotal / totalIncome : 0;
-
-  // KPIs
-  $('totalIncome').textContent = fmtUSD(totalIncome);
-  $('taxableIncome').textContent = fmtUSD(taxable);
-  $('totalTax').textContent = fmtUSD(totalTax);
-  $('effRate').textContent = (eff*100).toFixed(1) + '%';
-  $('pretaxSave').textContent = 'Tax saved by pretax: ' + fmtUSD(pretaxSaved);
-  $('deltaEff').textContent = 'Δ effective: ' + ((effBaseline - eff)*100).toFixed(1) + ' pp';
-
-  // Lock delta
-  if(locked){
-    $('lockDeltaTax').textContent = 'Δ vs lock: ' + fmtUSD(totalTax - locked.totalTax);
-    $('lockDeltaTI').textContent = 'Δ TI vs lock: ' + fmtUSD(taxable - locked.taxable);
-  } else {
-    $('lockDeltaTax').textContent = 'Δ vs lock: —';
-    $('lockDeltaTI').textContent = 'Δ TI vs lock: —';
+  const layers = (view==='federal') ? fed.layers : taxFromBrackets(taxableOrd, stBr).layers;
+  let currentLayer = layers.find(l => l.income>0 && (l.to===Infinity || taxableOrd <= l.to));
+  if(!currentLayer && layers.length) currentLayer = layers[layers.length-1];
+  let toNext=0, toDrop=0, marginal='—';
+  if(currentLayer){
+    const size = (isFinite(currentLayer.to)?currentLayer.to:Infinity) - currentLayer.from;
+    const used = currentLayer.income;
+    const room = (isFinite(size)?size:Infinity) - used;
+    toNext = isFinite(room)? room : 0;
+    toDrop = used>0 ? used+1 : 0;
+    marginal = Math.round(currentLayer.rate*100) + '%';
   }
-
-  // Marginal info
-  const active = (window.currentView==='state'?stateBr:fedBr);
-  const info = marginalInfo(taxable, active);
-  $('currentMarginal').textContent = info ? `Marginal ${Math.round(info.rate*100)}%` : 'Marginal —';
-  $('toNext').textContent = info && isFinite(info.room) ? ('To next: ' + fmtUSD(info.room)) : 'To next: —';
-
-  drawWaterfall(taxable, active);
-
-  return { totalIncome, taxable, fedTax, stateTax, totalTax, eff, pretaxSaved };
+  return {
+    fs, state,
+    totalIncome, agi, taxableOrd, deduction, std,
+    fedTax: fedAfterCredits, stateTax, totalTax, eff, marginal,
+    toNext, toDrop,
+    layers
+  };
 }
 
-function marginalInfo(taxable, brackets){
-  let prev = 0, acc = taxable;
-  for(const [i,b] of brackets.entries()){
-    const span = (isFinite(b.threshold)?b.threshold:Infinity) - prev;
-    const filled = Math.min(acc, span);
-    const room = span - filled;
-    const isThis = acc > 0 && filled > 0 && (room > 0 || !isFinite(b.threshold));
-    if(isThis) return { index:i, rate:b.rate, prev, threshold:b.threshold, room };
-    acc -= filled; prev = b.threshold;
+/* ----------------------- RENDER ----------------------- */
+function recalc(){
+  const s = compute();
+
+  $('mTotalIncome').textContent = money(s.totalIncome);
+  $('mTaxable').textContent     = money(s.taxableOrd);
+  $('mFed').textContent         = money(s.fedTax);
+  $('mState').textContent       = money(s.stateTax);
+  $('mEff').textContent         = (s.eff||0).toFixed(1)+'%';
+  $('mMarginal').textContent    = s.marginal;
+
+  $('wfTitle').textContent = (view==='federal'?'Federal':'State') + ' Waterfall (Ordinary Income)';
+  $('toNext').textContent  = money(s.toNext);
+  $('toDrop').textContent  = money(s.toDrop);
+
+  const chips = $('deltaChips');
+  chips.innerHTML = '';
+  if(baseline){
+    addDeltaChip(chips,'Δ Income', s.totalIncome - baseline.totalIncome);
+    addDeltaChip(chips,'Δ Taxable', s.taxableOrd - baseline.taxableOrd);
+    addDeltaChip(chips,'Δ Total tax', s.totalTax - baseline.totalTax);
+    const effDelta = (s.eff - baseline.eff);
+    const c = document.createElement('span'); c.className='pill delta';
+    c.textContent = 'Δ Effective: ' + (effDelta>=0?'+':'') + effDelta.toFixed(1) + ' pts';
+    chips.appendChild(c);
   }
-  return null;
+
+  renderWaterfall(s);
 }
 
-function drawWaterfall(taxable, brackets){
-  const host = $('waterfall');
-  host.innerHTML = '';
-  let prev = 0, left = taxable;
+function renderWaterfall(s){
+  const container = $('waterfall'); container.innerHTML='';
+  const breakdown = $('breakdown'); breakdown.innerHTML='';
 
-  brackets.forEach((b, idx) => {
-    const span = (isFinite(b.threshold)?b.threshold:Infinity) - prev;
-    const fill = Math.max(0, Math.min(left, span));
-    const pct = !isFinite(span) ? (fill>0?100:0) : (fill/span)*100;
+  const layers = s.layers;
+  if(!layers.length){
+    const p=document.createElement('div');
+    p.className='text-slate-400'; p.textContent='No taxable ordinary income.';
+    container.appendChild(p); return;
+  }
 
-    const tier = document.createElement('div');
-    tier.className = 'tier' + (fill>0 && fill<span ? ' is-marginal':'');
-    tier.dataset.tier = String((idx%9)+1);
+  let seenMarginal=false;
+  layers.forEach((L)=>{
+    const isMarginal = !seenMarginal && (L.income>0) && (L.to===Infinity || s.taxableOrd<=L.to);
+    if(isMarginal) seenMarginal=true;
 
-    const fillDiv = document.createElement('div');
-    fillDiv.className = 'fill';
-    fillDiv.style.width = pct.toFixed(2) + '%';
-    tier.appendChild(fillDiv);
+    const size = (isFinite(L.to)?L.to:Infinity) - L.from;
+    const fillPct = isFinite(size)? (L.income/size*100) : 100;
 
-    const label = isFinite(b.threshold)
-      ? `${fmtUSD(prev+1)} – ${fmtUSD(b.threshold)}`
-      : `Over ${fmtUSD(prev)}`;
+    const row=document.createElement('div'); row.className='bar' + (isMarginal?'':' bar-muted');
+    const fill=document.createElement('div'); fill.className='bar-fill'; fill.style.width = Math.min(100, Math.max(0, fillPct)) + '%';
+    const inner=document.createElement('div'); inner.className='bar-inner';
 
-    const content = document.createElement('div');
-    content.className = 'content';
-    content.innerHTML = `
-      <div>
-        <div style="font-weight:800">${(b.rate*100).toFixed(0)}% rate</div>
-        <div class="meta">${label}</div>
-      </div>
-      <div style="text-align:right">
-        <div class="value">${fmtUSD(fill)}</div>
-        <div class="meta">Tax: ${fmtUSD(fill*b.rate)}</div>
-      </div>
-    `;
-    // delta hints for the marginal tier
-    if(fill>0 && fill<span && isFinite(b.threshold)){
-      const room = span - fill;
-      const hint = document.createElement('div');
-      hint.className = 'meta';
-      hint.style.marginTop = '6px';
-      hint.textContent = `Room to next: ${fmtUSD(room)} | $1,000 pretax saves ${fmtUSD(1000*b.rate)}`;
-      content.appendChild(hint);
+    const left=document.createElement('div');
+    left.innerHTML = `<div class="font-semibold">${Math.round(L.rate*100)}% rate</div>
+                      <div class="text-xs text-slate-400">${isFinite(L.to)? (money(L.from+1)+' – '+money(L.to)) : ('Over '+money(L.from))}</div>`;
+    const right=document.createElement('div');
+    right.innerHTML = `<div class="font-semibold">${money(L.income)}</div>
+                       <div class="text-xs text-slate-400">Tax: ${money(L.tax)}</div>`;
+
+    inner.appendChild(left); inner.appendChild(right);
+    row.appendChild(fill); row.appendChild(inner);
+    container.appendChild(row);
+
+    if(isMarginal){
+      const room = isFinite(size)? (size - L.income) : 0;
+      const tips=document.createElement('div');
+      tips.className='text-xs mt-2';
+      const savePer1k = 1000*L.rate;
+      tips.innerHTML = `
+        <div class="flex" style="flex-wrap:wrap;gap:.5rem">
+          <span class="pill" style="border-color:#1f5f3a;color:#86efac">Room to next: ${money(room)}</span>
+          <span class="pill" style="border-color:#5f1f26;color:#fecaca">Cut to drop: ${money(L.income+1)}</span>
+          <span class="pill">Each $1,000 pre-tax saves ${money(savePer1k)} here</span>
+        </div>`;
+      container.appendChild(tips);
     }
 
-    tier.appendChild(content);
-    host.appendChild(tier);
-
-    left -= fill; prev = b.threshold;
+    const li=document.createElement('div');
+    li.innerHTML = `<span class="text-slate-400">${money(L.from+1)} → ${isFinite(L.to)?money(L.to):'∞'}</span>
+                    · <span class="font-semibold">${Math.round(L.rate*100)}%</span>
+                    · Income ${money(L.income)} · Tax ${money(L.tax)}`;
+    breakdown.appendChild(li);
   });
 }
 
-/* View & theme toggles */
-window.currentView = 'federal';
-$('federalBtn').onclick = () => {
-  window.currentView='federal';
-  $('federalBtn').classList.add('active');
-  $('stateBtn').classList.remove('active');
-  computeTotals();
-};
-$('stateBtn').onclick = () => {
-  window.currentView='state';
-  $('stateBtn').classList.add('active');
-  $('federalBtn').classList.remove('active');
-  computeTotals();
-};
-$('themeToggle').addEventListener('click', (e)=>{
-  const t = e.target?.dataset?.theme;
-  if(!t) return;
-  document.documentElement.setAttribute('data-theme', t);
-});
-
-/* Lock compare */
-$('lockBtn').onclick = () => { locked = computeTotals(); };
-$('resetLockBtn').onclick = () => { locked = null; computeTotals(); };
-
-/* Wire sliders (replace with your existing listeners) */
-function linkRange(id, getter, setter){
-  const el = $(id);
-  const disp = $(id+'Display');
-  if(!el) return;
-  el.addEventListener('input', ()=>{
-    setter(+el.value||0);
-    disp && (disp.textContent = fmtUSD(+el.value||0));
-    computeTotals();
-  });
-}
-linkRange('tradK', ()=>model.tradK, v=>{model.tradK=v; clampContribs();});
-linkRange('rothK', ()=>model.rothK, v=>{model.rothK=v; clampContribs();});
-linkRange('hsa', ()=>model.hsa, v=>{model.hsa=v; clampContribs();});
-
-/* Initial */
-clampContribs();
-computeTotals();
+/* ----------------------- BOOT ----------------------- */
+document.addEventListener('DOMContentLoaded', loadAll);
