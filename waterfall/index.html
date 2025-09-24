@@ -1,18 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Tax Waterfall Visualizer · 2025</title>
-  <link rel="stylesheet" href="styles.css"/>
-  <!-- Optional: Inter font; safe to remove if you want pure system-ui -->
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Optional webfont; safe to remove if you want system fonts only -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
-
 <body>
   <div class="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+
+    <!-- Header -->
     <header class="flex flex-wrap items-center justify-between gap-3">
       <div class="space-y-1">
         <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">Tax Waterfall Visualizer · 2025</h1>
@@ -25,9 +26,9 @@
       </div>
     </header>
 
-    <!-- TOP ROW: Jurisdiction + Quick metrics -->
+    <!-- Top row: jurisdiction + metrics + controls -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <!-- Jurisdiction / status -->
+      <!-- Jurisdiction -->
       <div class="card space-y-3">
         <div>
           <label class="label">Filing status</label>
@@ -41,13 +42,10 @@
           <label class="label">State</label>
           <select id="state" class="select"></select>
         </div>
-        <div class="text-xs text-slate-400">
-          Data year: 2025 federal and state. Federal brackets & standard deduction from IRS.
-          State data loaded from <code class="kbd">states_2025.json</code>.
-        </div>
+        <div class="text-xs text-slate-400">Data year: 2025 federal and state. Federal tables & standard deduction from IRS. State data loaded from <code class="kbd">states_2025.json</code>.</div>
       </div>
 
-      <!-- KPI metrics -->
+      <!-- Metrics -->
       <div class="card grid grid-cols-2 gap-3">
         <div class="metric"><div class="label">Total income</div><div id="mTotalIncome" class="text-xl font-bold">$0</div></div>
         <div class="metric"><div class="label">Taxable ordinary</div><div id="mTaxable" class="text-xl font-bold">$0</div></div>
@@ -57,7 +55,7 @@
         <div class="metric"><div class="label">Current marginal</div><div id="mMarginal" class="text-xl font-bold">—</div></div>
       </div>
 
-      <!-- View toggle + lock -->
+      <!-- Controls -->
       <div class="card space-y-2">
         <div class="flex gap-2">
           <button id="viewFederal" class="btn btn-primary">Federal</button>
@@ -74,7 +72,7 @@
       </div>
     </div>
 
-    <!-- GRID: Inputs + Waterfall + Breakdown -->
+    <!-- Main grid: inputs + waterfall -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <!-- Inputs -->
       <div class="card space-y-5">
@@ -85,15 +83,15 @@
           <div class="grid grid-cols-form gap-2 items-center">
             <label>Salary</label>
             <div class="field">
-              <input id="e1SalaryText" type="text" value="120,000"/>
-              <input id="e1Salary" class="range" type="range" min="0" max="500000" step="1000" value="120000"/>
+              <input id="e1SalaryText" type="text" value="120,000">
+              <input id="e1Salary" class="range" type="range" min="0" max="500000" step="1000" value="120000">
             </div>
           </div>
           <div class="grid grid-cols-form gap-2 items-center">
             <label>Bonus / RSU</label>
             <div class="field">
-              <input id="e1BonusText" type="text" value="15,000"/>
-              <input id="e1Bonus" class="range" type="range" min="0" max="300000" step="500" value="15000"/>
+              <input id="e1BonusText" type="text" value="15,000">
+              <input id="e1Bonus" class="range" type="range" min="0" max="300000" step="500" value="15000">
             </div>
           </div>
         </div>
@@ -103,15 +101,15 @@
           <div class="grid grid-cols-form gap-2 items-center">
             <label>Salary</label>
             <div class="field">
-              <input id="e2SalaryText" type="text" value="0"/>
-              <input id="e2Salary" class="range" type="range" min="0" max="500000" step="1000" value="0"/>
+              <input id="e2SalaryText" type="text" value="0">
+              <input id="e2Salary" class="range" type="range" min="0" max="500000" step="1000" value="0">
             </div>
           </div>
           <div class="grid grid-cols-form gap-2 items-center">
             <label>Bonus / RSU</label>
             <div class="field">
-              <input id="e2BonusText" type="text" value="0"/>
-              <input id="e2Bonus" class="range" type="range" min="0" max="300000" step="500" value="0"/>
+              <input id="e2BonusText" type="text" value="0">
+              <input id="e2Bonus" class="range" type="range" min="0" max="300000" step="500" value="0">
             </div>
           </div>
         </div>
@@ -119,8 +117,8 @@
         <div class="grid grid-cols-form gap-2 items-center">
           <label>Other ordinary (STCG, interest)</label>
           <div class="field">
-            <input id="otherOrdText" type="text" value="5,000"/>
-            <input id="otherOrd" class="range" type="range" min="0" max="150000" step="500" value="5000"/>
+            <input id="otherOrdText" type="text" value="5,000">
+            <input id="otherOrd" class="range" type="range" min="0" max="150000" step="500" value="5000">
           </div>
         </div>
 
@@ -128,15 +126,15 @@
           <div class="grid grid-cols-form gap-2 items-center">
             <label>Traditional 401(k)</label>
             <div class="field">
-              <input id="trad401kText" type="text" value="23,500"/>
-              <input id="trad401k" class="range" type="range" min="0" max="23500" step="250" value="23500"/>
+              <input id="trad401kText" type="text" value="23,500">
+              <input id="trad401k" class="range" type="range" min="0" max="23500" step="250" value="23500">
             </div>
           </div>
           <div class="grid grid-cols-form gap-2 items-center">
             <label>Roth 401(k)</label>
             <div class="field">
-              <input id="roth401kText" type="text" value="0"/>
-              <input id="roth401k" class="range" type="range" min="0" max="0" step="250" value="0"/>
+              <input id="roth401kText" type="text" value="0">
+              <input id="roth401k" class="range" type="range" min="0" max="0" step="250" value="0">
             </div>
           </div>
           <div class="text-xs text-slate-400">
@@ -145,15 +143,15 @@
           <div class="grid grid-cols-form gap-2 items-center">
             <label>HSA (pre-tax)</label>
             <div class="field">
-              <input id="hsaText" type="text" value="0"/>
-              <input id="hsa" class="range" type="range" min="0" max="8550" step="50" value="0"/>
+              <input id="hsaText" type="text" value="0">
+              <input id="hsa" class="range" type="range" min="0" max="8550" step="50" value="0">
             </div>
           </div>
           <div class="grid grid-cols-form gap-2 items-center">
             <label>Itemized deductions</label>
             <div class="field">
-              <input id="itemizedText" type="text" value="0"/>
-              <input id="itemized" class="range" type="range" min="0" max="200000" step="250" value="0"/>
+              <input id="itemizedText" type="text" value="0">
+              <input id="itemized" class="range" type="range" min="0" max="200000" step="250" value="0">
             </div>
           </div>
           <div class="field items-center justify-between">
@@ -175,17 +173,17 @@
           <div class="grid grid-cols-form gap-2 items-center">
             <label>Other nonrefundable credits</label>
             <div class="field">
-              <input id="creditsText" type="text" value="0"/>
-              <input id="credits" class="range" type="range" min="0" max="20000" step="100" value="0"/>
+              <input id="creditsText" type="text" value="0">
+              <input id="credits" class="range" type="range" min="0" max="20000" step="100" value="0">
             </div>
           </div>
           <div class="text-xs text-slate-400">
-            Modeled as a dollar-for-dollar reduction to federal tax. Complex phaseouts deliberately not modeled.
+            Modeled as a straight dollar-for-dollar reduction to federal tax. Complex phaseouts (CTC, AOTC, etc.) deliberately not modeled.
           </div>
         </div>
       </div>
 
-      <!-- CENTER/RIGHT: Waterfall + breakdown -->
+      <!-- Waterfall -->
       <div class="lg:col-span-2 card space-y-4">
         <div class="flex items-center justify-between">
           <h2 id="wfTitle" class="text-lg font-semibold">Federal Waterfall (Ordinary Income)</h2>
@@ -194,7 +192,6 @@
             <span class="pill">To drop: <span id="toDrop">$0</span></span>
           </div>
         </div>
-
         <div id="waterfall" class="space-y-3"></div>
 
         <div class="border-t border-slate-700 pt-3">
@@ -207,8 +204,10 @@
     <footer class="text-xs text-slate-500 text-center pt-4">
       Illustration only. Uses 2025 tables; excludes self-employment tax and AMT. Verify with your tax pro before doing anything heroic.
     </footer>
+
   </div>
 
+  <!-- Your app script; loads after DOM so no defer needed -->
   <script src="app.js"></script>
 </body>
 </html>
