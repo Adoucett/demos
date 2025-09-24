@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Tax Waterfall Visualizer • 2024</title>
+<!-- Tailwind (single tag) -->
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { color-scheme: light; }
+  body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+  .card { @apply bg-white rounded-2xl p-5 shadow; }
+  .kpi { @apply p-4 rounded-xl text-center border; }
+  input[type="range"]{ -webkit-appearance:none; appearance:none; width:100%; height:6px; background:#e5e7eb; border-radius:9999px; outline:none}
+  input[type="range"]::-webkit-slider-thumb{ -webkit-appearance:none; appearance:none; width:18px; height:18px; background:#2563eb; border:3px solid #fff; border-radius:50%; box-shadow:0 0 8px rgba(37,99,235,.35); cursor:pointer }
+  input[type="range"]::-moz-range-thumb{ width:18px; height:18px; background:#2563eb; border:3px solid #fff; border-radius:50%; box-shadow:0 0 8px rgba(37,99,235,.35); cursor:pointer }
+  .band-fill{ height:100%; position:absolute; left:0; top:0; opacity:.35; transition:width .35s ease }
+  .band-row{ position:relative }
+  .badge{ @apply px-2 py-0.5 rounded-full text-xs font-semibold }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+<div class="max-w-7xl mx-auto p-4 md:p-8">
+  <header class="mb-6 md:mb-8">
+    <div class="flex items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-bold">Tax Waterfall Visualizer</h1>
+        <p class="text-slate-500 text-sm">Real-time bracket fill with “how close am I” deltas. 2024 federal values; swap to 2025 when ready.</p>
+      </div>
+      <div class="flex items-center gap-2 bg-slate-100 rounded-xl p-1">
+        <button id="btnFederal" class="px-3 py-1 rounded-lg text-sm font-semibold bg-white shadow">Federal</button>
+        <button id="btnState" class="px-3 py-1 rounded-lg text-sm font-semibold text-slate-600">State</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Left: Inputs -->
+    <div class="space-y-6">
+      <div class="card">
+        <h3 class="text-lg font-semibold mb-4">Jurisdiction</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm mb-1">Filing status</label>
+            <select id="filingStatus" class="w-full border rounded-lg px-3 py-2">
+              <option value="single">Single</option>
+              <option value="marriedFilingJointly">Married filing jointly</option>
+              <option value="headOfHousehold">Head of household</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm mb-1">State</label>
+            <select id="state" class="w-full border rounded-lg px-3 py-2"></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="text-lg font-semibold mb-4">Wages & ordinary income</h3>
+
+        <div id="earner1" class="space-y-4 border-b pb-4">
+          <p class="font-semibold text-slate-600" id="earner1Label">Primary earner</p>
+          <div>
+            <div class="flex justify-between items-center">
+              <label class="text-sm">Salary</label>
+              <span class="text-sm font-semibold text-blue-700">$<input id="e1SalaryNum" type="number" class="w-28 border rounded-md px-2 py-1 text-right" value="120000"></span>
+            </div>
+            <input id="e1Salary" type="range" min="0" max="500000" step="1000" value="120000">
+          </div>
+          <div>
+            <div class="flex justify-between items-center">
+              <label class="text-sm">Bonus / RSU (taxed ordinary)</label>
+              <span class="text-sm font-semibold text-blue-700">$<input id="e1BonusNum" type="number" class="w-28 border rounded-md px-2 py-1 text-right" value="15000"></span>
+            </div>
+            <input id="e1Bonus" type="range" min="0" max="250000" step="500" value="15000">
+          </div>
+        </div>
+
+        <div id="earner2" class="space-y-4 pt-4 hidden">
+          <p class="font-semibold text-slate-600">Secondary earner</p>
+          <div>
+            <div class="flex justify-between items-center">
+              <label class="text-sm">Salary</label>
+              <span class="text-sm font-semibold text-blue-700">$<input id="e2SalaryNum" type="number" class="w-28 border rounded-md px-2 py-1 text-right" value="0"></span>
+            </div>
+            <input id="e2Salary" type="range" min="0" max="500000" step="1000" value="0">
+          </div>
+          <div>
+            <div class="flex justify-between items-center">
+              <label class="text-sm">Bonus / RSU (taxed ordinary)</label>
+              <span class="text-sm font-semibold text-blue-700">$<input id="e2BonusNum" type="number" class="w-28 border rounded-md px-2 py-1 text-right" value="0"></span>
+            </div>
+            <input id="e2Bonus" type="range" min="0" max="250000" step="500" value="0">
+          </div>
+        </div>
+
+        <div class="pt-4 mt-4 border-t">
+          <div class="flex justify-between items-center">
+            <label class="text-sm">Other ordinary income (ST gains, interest, etc)</label>
+            <span class="text-sm font-semibold text-blue-700">$<input id="otherNum" type="number" class="w-28 border rounded-md px-2 py-1 text-right" value="5000"></span>
+          </div>
+          <input id="other" type="range" min="0" max="100000" step="500" value="5000">
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="text-lg font-semibold mb-4">Deductions & contributions</h3>
+        <div class="space-y-4">
+          <div>
+            <div class="flex justify-between items-center">
+              <label class="text-sm">Employee 401(k) / pre-tax</label>
+              <span class="text-sm font-semibold text-emerald-700">$<input id="pretaxNum" type="number" class="w-28 border rounded-md px-2 py-1 text-right" value="23000"></span>
+            </div>
+            <!-- default 23k; cap updates with status. swap to 23,500 for 2025 later -->
+            <input id="pretax" type="range" min="0" max="46000" step="250" value="23000">
+            <div class="text-xs text-slate-500 mt-1">Cap adjusts by filing status. Catch-up not modeled.</div>
+          </div>
+
+          <div>
+            <div class="flex items-center gap-4">
+              <label class="text-sm font-medium">Deduction type</label>
+              <label class="text-sm"><input type="radio" name="dedType" value="standard" checked class="mr-1">Standard</label>
+              <label class="text-sm"><input type="radio" name="dedType" value="itemized" class="mr-1">Itemized</label>
+            </div>
+            <div id="stdBlock" class="text-sm text-slate-600 mt-1">Standard deduction: <span id="stdAmt" class="font-semibold"></span></div>
+            <div id="itmBlock" class="hidden mt-2">
+              <div class="flex justify-between items-center">
+                <label class="text-sm">Itemized amount</label>
+                <span class="text-sm font-semibold text-emerald-700">$<input id="itemizedNum" type="number" class="w-28 border rounded-md px-2 py-1 text-right" value="15000"></span>
+              </div>
+              <input id="itemized" type="range" min="0" max="100000" step="250" value="15000">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: KPIs + Waterfall -->
+    <div class="lg:col-span-2 space-y-6">
+      <div class="card">
+        <h3 class="text-xl font-semibold mb-4 text-center">Summary</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="kpi">
+            <div class="text-xs text-slate-500">Total income</div>
+            <div id="kpiTotal" class="text-xl font-bold">$0</div>
+          </div>
+          <div class="kpi">
+            <div class="text-xs text-emerald-600">Taxable ordinary</div>
+            <div id="kpiTaxable" class="text-xl font-bold text-emerald-700">$0</div>
+          </div>
+          <div class="kpi">
+            <div class="text-xs text-slate-500">Federal tax</div>
+            <div id="kpiFed" class="text-xl font-bold">$0</div>
+          </div>
+          <div class="kpi">
+            <div class="text-xs text-slate-500">State tax <span id="stateBadge" class="badge bg-slate-100 text-slate-700">—</span></div>
+            <div id="kpiState" class="text-xl font-bold">$0</div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mt-3">
+          <div class="kpi">
+            <div class="text-xs text-slate-500">Effective total</div>
+            <div id="kpiEff" class="text-lg font-semibold">0.0%</div>
+          </div>
+          <div class="kpi">
+            <div class="text-xs text-slate-500">Current marginal</div>
+            <div id="kpiMarginal" class="text-lg font-semibold">—</div>
+          </div>
+          <div class="kpi">
+            <div class="text-xs text-slate-500">To next bracket</div>
+            <div id="kpiToNext" class="text-lg font-semibold">$0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-xl font-semibold">Bracket waterfall</h3>
+          <div class="text-xs text-slate-500">Bars fill left to right. Last bar is the marginal bracket.</div>
+        </div>
+        <div id="waterfall" class="space-y-3"></div>
+        <div id="explain" class="text-xs text-slate-500 mt-3"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="mt-10 text-center text-xs text-slate-500">
+    Pure math, no tracking, no advice. Verify with official tables before making life decisions you’ll regret.
+  </footer>
+</div>
+
+<script>
+/* ========= FEDERAL (2024) — swap to 2025 tables when ready ========= */
+const FED = {
+  brackets: {
+    single: [
+      { rate:.10, hi:11600 }, { rate:.12, hi:47150 }, { rate:.22, hi:100525 },
+      { rate:.24, hi:191950 }, { rate:.32, hi:243725 }, { rate:.35, hi:609350 },
+      { rate:.37, hi:null }
+    ],
+    marriedFilingJointly: [
+      { rate:.10, hi:23200 }, { rate:.12, hi:94300 }, { rate:.22, hi:201050 },
+      { rate:.24, hi:383900 }, { rate:.32, hi:487450 }, { rate:.35, hi:731100 },
+      { rate:.37, hi:null }
+    ],
+    headOfHousehold: [
+      { rate:.10, hi:16550 }, { rate:.12, hi:63100 }, { rate:.22, hi:100500 },
+      { rate:.24, hi:191950 }, { rate:.32, hi:243700 }, { rate:.35, hi:609350 },
+      { rate:.37, hi:null }
+    ]
+  },
+  stdDeduction: { single:14600, marriedFilingJointly:29200, headOfHousehold:21900 },
+  k401CapByStatus: { single:23000, marriedFilingJointly:46000, headOfHousehold:23000 } // update to 23500 / 47000 for 2025 if you want
+};
+
+/* ========= STATE DATA LOADING ========= */
+let STATES = null;
+async function loadStates() {
+  try {
+    const resp = await fetch('./states_2025.json', { cache:'no-store' });
+    if (!resp.ok) throw new Error('not found');
+    const j = await resp.json();
+    STATES = j.states;
+  } catch (e) {
+    // Fall back to no-tax everywhere if file missing; UI still works.
+    STATES = { };
+  }
+}
+
+/* ========= UTIL ========= */
+const fmt = (n) => n.toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0});
+const pct = (p) => `${(p*100).toFixed(1).replace(/\.0$/,'')}%`;
+function link(slider, num, max){ slider.max = String(max); num.max = String(max);
+  const sync = (src,dst)=>{ let v = Math.max(0, Math.min(Number(src.value||0), Number(src.max||max))); dst.value = v; render(); };
+  slider.addEventListener('input', ()=>sync(slider,num));
+  num.addEventListener('input', ()=>sync(num,slider));
+  num.addEventListener('blur', ()=>{ if(num.value==='') num.value = slider.value; });
+}
+
+/* ========= TAX ENGINE ========= */
+function calcTax(taxable, brackets){
+  if (!brackets || !brackets.length) return { tax:0, bands:[] };
+  let rem = Math.max(0, taxable), last = 0, tax = 0;
+  const bands = [];
+  for(const b of brackets){
+    const top = (b.hi==null ? Infinity : b.hi);
+    const size = top - last;
+    const inBand = Math.max(0, Math.min(rem, size));
+    const t = inBand * b.rate;
+    tax += t;
+    bands.push({ lo:last, hi: b.hi, rate:b.rate, size, used:inBand, tax:t });
+    rem -= inBand; last = top;
+    if (rem<=0) break;
+  }
+  return { tax, bands };
+}
+
+function toStateBrackets(code, filing){
+  const s = STATES?.[code];
+  if (!s) return [];
+  const key = filing === 'marriedFilingJointly' ? 'mfj' : (filing==='headOfHousehold' ? 'hoh' : 'single');
+  const raw = s.brackets?.[key] || [];
+  // normalize to {rate, hi}
+  const out = raw.map(r => ({ rate: r.rate, hi: r.hi==null ? null : r.hi }));
+  return out;
+}
+
+/* ========= DOM HOOKS ========= */
+const el = (id)=>document.getElementById(id);
+const filingStatus = el('filingStatus'), stateSel = el('state');
+const e1Salary = el('e1Salary'), e1SalaryNum = el('e1SalaryNum');
+const e1Bonus  = el('e1Bonus'),  e1BonusNum  = el('e1BonusNum');
+const e2Salary = el('e2Salary'), e2SalaryNum = el('e2SalaryNum');
+const e2Bonus  = el('e2Bonus'),  e2BonusNum  = el('e2BonusNum');
+const other    = el('other'),    otherNum    = el('otherNum');
+const pretax   = el('pretax'),   pretaxNum   = el('pretaxNum');
+const itemized = el('itemized'), itemizedNum = el('itemizedNum');
+const stdBlock = el('stdBlock'), itmBlock = el('itmBlock'), stdAmt = el('stdAmt');
+const earner2Box = el('earner2'), earner1Label = el('earner1Label');
+const kpiTotal = el('kpiTotal'), kpiTaxable = el('kpiTaxable'), kpiFed = el('kpiFed'), kpiState = el('kpiState');
+const kpiEff = el('kpiEff'), kpiMarginal = el('kpiMarginal'), kpiToNext = el('kpiToNext'), stateBadge=el('stateBadge');
+const waterfall = el('waterfall'), explain = el('explain');
+const btnFederal = el('btnFederal'), btnState = el('btnState');
+
+let view = 'federal';
+
+function populateStates(){
+  const codes = Object.keys(STATES || {}).sort();
+  // if JSON missing, at least provide common choices
+  const fallback = ['CA','NY','TX','FL','WA','MA','NJ','IL','PA','CO','OR','AZ','DC'];
+  const list = codes.length ? codes : fallback;
+  stateSel.innerHTML = '';
+  for(const c of list){
+    const opt = document.createElement('option');
+    const nm = STATES?.[c]?.name || c;
+    opt.value = c; opt.textContent = nm;
+    stateSel.appendChild(opt);
+  }
+  stateSel.value = 'CA';
+  stateBadge.textContent = stateSel.value;
+}
+
+function updateCaps(){
+  const status = filingStatus.value;
+  const cap = FED.k401CapByStatus[status] || 23000;
+  pretax.max = String(cap);
+  pretaxNum.max = String(cap);
+  if (Number(pretax.value) > cap) pretax.value = pretaxNum.value = cap;
+  // MFJ shows second earner
+  if (status==='marriedFilingJointly'){ earner2Box.classList.remove('hidden'); earner1Label.textContent='Earner 1'; }
+  else { earner2Box.classList.add('hidden'); earner1Label.textContent='Primary earner';
+         e2Salary.value=e2SalaryNum.value=0; e2Bonus.value=e2BonusNum.value=0; }
+  stdAmt.textContent = fmt(FED.stdDeduction[status]);
+}
+
+function currentInputs(){
+  const status = filingStatus.value;
+  const earners = (status==='marriedFilingJointly') ? 2 : 1;
+  const totalIncome = (+e1Salary.value||0)+(+e1Bonus.value||0) + (earners===2? (+e2Salary.value||0)+(+e2Bonus.value||0) : 0) + (+other.value||0);
+  const pretaxVal = +pretax.value||0;
+  const dedType = Array.from(document.querySelectorAll('input[name="dedType"]')).find(r=>r.checked)?.value || 'standard';
+  const std = FED.stdDeduction[status];
+  const ded = dedType==='standard' ? std : (+itemized.value||0);
+  const agi = Math.max(0, totalIncome - pretaxVal);
+  const taxable = Math.max(0, agi - ded);
+  return { status, state: stateSel.value, totalIncome, pretaxVal, agi, taxable, std, dedType, ded };
+}
+
+function gradientClass(i){
+  const g = [
+    'from-emerald-200 to-emerald-300','from-teal-200 to-teal-300','from-cyan-200 to-cyan-300',
+    'from-sky-200 to-sky-300','from-indigo-200 to-indigo-300','from-purple-200 to-purple-300',
+    'from-fuchsia-200 to-fuchsia-300','from-pink-200 to-pink-300','from-rose-200 to-rose-300'
+  ];
+  return g[i % g.length];
+}
+
+function renderWaterfall(taxable, brackets, stateExtra){
+  waterfall.innerHTML = '';
+  if (!brackets || !brackets.length){
+    waterfall.innerHTML = '<div class="p-4 bg-slate-100 rounded-lg text-center">No income tax for this selection.</div>';
+    kpiMarginal.textContent = '—';
+    kpiToNext.textContent = '$0';
+    explain.textContent = '';
+    return;
+  }
+  const { tax, bands } = calcTax(taxable, brackets);
+  // find marginal band
+  const mb = bands.find(b => b.used>0 && (b.hi===null || b.used < b.size)) || bands[bands.length-1];
+  const room = (mb.hi==null) ? 0 : Math.max(0, (mb.lo + mb.size) - (mb.lo + mb.used));
+  kpiMarginal.textContent = pct(mb.rate);
+  kpiToNext.textContent = mb.hi==null ? '—' : fmt(room);
+
+  bands.forEach((b, i) => {
+    const band = document.createElement('div');
+    band.className = 'band-row border rounded-xl p-3 overflow-hidden';
+    const size = (b.hi==null) ? Infinity : (b.hi - b.lo);
+    const pctFill = size===Infinity ? (b.used>0 ? 100 : 0) : (b.used/size)*100;
+    const fill = document.createElement('div');
+    fill.className = `band-fill bg-gradient-to-r ${gradientClass(i)}`;
+    fill.style.width = pctFill + '%';
+    band.appendChild(fill);
+
+    const label = (b.hi==null) ? `Over ${fmt(b.lo)}` : `${fmt(b.lo+1)}–${fmt(b.hi)}`;
+    band.innerHTML += `
+      <div class="relative z-10 flex items-center justify-between">
+        <div>
+          <div class="text-sm font-semibold">${(b.rate*100).toFixed(0)}% rate</div>
+          <div class="text-xs text-slate-500">${label}</div>
+        </div>
+        <div class="text-right">
+          <div class="text-sm font-semibold">${fmt(b.used)}</div>
+          <div class="text-xs text-slate-500">Tax: ${fmt(b.tax)}</div>
+        </div>
+      </div>
+    `;
+
+    if (b===mb){
+      const savePer1k = 1000*b.rate;
+      const downToLower = (b.lo>0 && b.used>0) ? fmt(b.used+1) : '';
+      const insights = document.createElement('div');
+      insights.className = 'relative z-10 mt-2 pt-2 border-t text-xs text-blue-800';
+      insights.innerHTML = `
+        <div class="flex flex-col gap-1">
+          <div>→ Room to next bracket: <span class="font-semibold">${b.hi==null ? 'n/a' : fmt(room)}</span></div>
+          <div>← Cut taxable by <span class="font-semibold">${downToLower || '—'}</span> to drop a bracket</div>
+          <div>💡 $1,000 pre-tax here saves <span class="font-semibold">${fmt(savePer1k)}</span> in tax</div>
+        </div>
+      `;
+      band.appendChild(insights);
+      band.classList.add('border-blue-500','bg-blue-50','shadow');
+    }
+    waterfall.appendChild(band);
+  });
+
+  explain.textContent = stateExtra || '';
+  return tax;
+}
+
+function render(){
+  const inp = currentInputs();
+  const fedBrackets = FED.brackets[inp.status];
+  const fed = calcTax(inp.taxable, fedBrackets).tax;
+
+  // state math
+  const stateBr = toStateBrackets(inp.state, inp.status);
+  let stateTax = 0, stateExplain = '';
+  if (stateBr.length){
+    const res = calcTax(inp.taxable, stateBr);
+    stateTax = res.tax;
+    // optional: MA surtax
+    const s = STATES?.[inp.state];
+    if (s?.surtax && inp.taxable > s.surtax.threshold){
+      const extra = (inp.taxable - s.surtax.threshold) * s.surtax.rate;
+      stateTax += extra;
+      stateExplain = `Includes surtax above ${fmt(s.surtax.threshold)} at ${pct(s.surtax.rate)}.`;
+    }
+  }
+
+  // KPIs
+  kpiTotal.textContent   = fmt(inp.totalIncome);
+  kpiTaxable.textContent = fmt(inp.taxable);
+  kpiFed.textContent     = fmt(fed);
+  kpiState.textContent   = fmt(stateTax);
+  stateBadge.textContent = inp.state;
+  const eff = inp.totalIncome>0 ? (fed+stateTax)/inp.totalIncome : 0;
+  kpiEff.textContent = (eff*100).toFixed(1)+'%';
+
+  // Waterfall view
+  if (view==='federal'){
+    renderWaterfall(inp.taxable, fedBrackets, '');
+    btnFederal.classList.add('bg-white','shadow'); btnFederal.classList.remove('text-slate-600');
+    btnState.classList.remove('bg-white','shadow'); btnState.classList.add('text-slate-600');
+  } else {
+    const hasState = (stateBr && stateBr.length);
+    if (!hasState){ renderWaterfall(inp.taxable, [], ''); }
+    else { renderWaterfall(inp.taxable, stateBr, stateExplain); }
+    btnState.classList.add('bg-white','shadow'); btnState.classList.remove('text-slate-600');
+    btnFederal.classList.remove('bg-white','shadow'); btnFederal.classList.add('text-slate-600');
+  }
+}
+
+/* ========= INIT ========= */
+(async function init(){
+  await loadStates();
+  populateStates();
+  updateCaps();
+
+  // link sliders <-> numbers
+  link(e1Salary, e1SalaryNum, 500000);
+  link(e1Bonus,  e1BonusNum,  250000);
+  link(e2Salary, e2SalaryNum, 500000);
+  link(e2Bonus,  e2BonusNum,  250000);
+  link(other,    otherNum,    100000);
+  // itemized only when selected
+  link(itemized, itemizedNum, 100000);
+
+  // pretax cap adjusts with status
+  link(pretax, pretaxNum, Number(pretax.max||46000));
+
+  // events
+  filingStatus.addEventListener('change', ()=>{ updateCaps(); render(); });
+  stateSel.addEventListener('change', ()=>{ stateBadge.textContent = stateSel.value; render(); });
+
+  document.querySelectorAll('input[name="dedType"]').forEach(r=>{
+    r.addEventListener('change', ()=>{
+      if (r.value==='itemized'){ itmBlock.classList.remove('hidden'); stdBlock.classList.add('hidden'); }
+      else { itmBlock.classList.add('hidden'); stdBlock.classList.remove('hidden'); }
+      render();
+    });
+  });
+
+  // view toggle
+  btnFederal.addEventListener('click', ()=>{ view='federal'; render(); });
+  btnState.addEventListener('click', ()=>{ view='state'; render(); });
+
+  // auto-enable MFJ second earner when selected
+  if (filingStatus.value==='marriedFilingJointly'){ earner2Box.classList.remove('hidden'); }
+
+  render();
+})();
+</script>
+</body>
+</html>
