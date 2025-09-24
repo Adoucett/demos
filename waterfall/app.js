@@ -35,6 +35,20 @@ let view='federal';
 let dedMode='standard';
 let baseline=null; // lock baseline
 
+function normalizeStateBrackets(STATES) {
+  for (const code of Object.keys(STATES)) {
+    const b = STATES[code]?.brackets;
+    if (!b) continue;
+    for (const fs of ['single','marriedFilingJointly','headOfHousehold']) {
+      const arr = b[fs] || [];
+      arr.forEach(layer => {
+        if (layer.threshold == null) layer.threshold = Infinity; // <-- key fix
+      });
+      b[fs] = arr;
+    }
+  }
+}
+
 /* ----------------------- LOAD DATA ----------------------- */
 async function loadAll(){
   const [fed, states] = await Promise.all([
@@ -42,6 +56,7 @@ async function loadAll(){
     fetch('states_2025.json').then(r=>r.json())
   ]);
   FED=fed; STATES=states;
+  normalizeStateBrackets(STATES);
 
   // Populate states
   const s = $('state');
