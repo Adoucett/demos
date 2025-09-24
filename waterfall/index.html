@@ -1,80 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Tax Waterfall Visualizer</title>
-  <link rel="stylesheet" href="styles.css" />
-  <!-- Optional: Inter font, or swap for system-ui only -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Tax Waterfall Visualizer · 2025</title>
+  <link rel="stylesheet" href="styles.css"/>
+  <!-- Optional: Inter font; safe to remove if you want pure system-ui -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 </head>
+
 <body>
-  <div class="container">
-    <header class="row" style="margin-bottom: 16px;">
-      <h1>Tax Waterfall Visualizer · 2025</h1>
-      <div class="row" style="gap:8px">
-        <div class="toggle" id="viewToggle">
-          <button id="federalBtn" class="active">Federal</button>
-          <button id="stateBtn">State</button>
-        </div>
-        <div class="toggle" id="themeToggle">
-          <button data-theme="light">☀️</button>
-          <button data-theme="dark">🌙</button>
-        </div>
-        <button class="button" id="lockBtn">Lock in</button>
-        <button class="button" id="resetLockBtn">Clear lock</button>
+  <div class="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+    <header class="flex flex-wrap items-center justify-between gap-3">
+      <div class="space-y-1">
+        <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">Tax Waterfall Visualizer · 2025</h1>
+        <p class="text-sm text-slate-400">Brackets as buckets. Twist the knobs, watch the waterfall, don’t cry.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="vchip"><span class="legend-dot" style="background:linear-gradient(90deg,#22d3ee,#60a5fa,#a78bfa)"></span>Fill level</span>
+        <span class="vchip"><span class="legend-dot" style="background:#34d399"></span>Room to next</span>
+        <span class="vchip"><span class="legend-dot" style="background:#f87171"></span>Cut to drop</span>
       </div>
     </header>
 
-    <div class="grid grid-3">
-      <div class="card">
-        <!-- your existing inputs here; add the three new blocks -->
-        <div class="row"><div class="label">Trad 401(k)</div><div class="value"><span id="tradKDisplay">$0</span></div></div>
-        <input type="range" id="tradK" min="0" step="250" value="0">
-
-        <div class="row"><div class="label">Roth 401(k)</div><div class="value"><span id="rothKDisplay">$0</span></div></div>
-        <input type="range" id="rothK" min="0" step="250" value="0">
-
-        <div class="help">Combined 401(k) employee contributions capped by IRS (auto-enforced).</div>
-
-        <div class="row" style="margin-top:12px"><div class="label">HSA (pretax)</div><div class="value"><span id="hsaDisplay">$0</span></div></div>
-        <input type="range" id="hsa" min="0" step="50" value="0">
-        <div class="help">HSA reduces taxable income; family/single limit auto-enforced.</div>
-
-        <!-- keep your existing salary/bonus/other sliders; number inputs formatted by JS below -->
-      </div>
-
-      <div class="card">
-        <div class="kpis">
-          <div class="kpi"><div class="sub">Total income</div><div class="big" id="totalIncome">$0</div></div>
-          <div class="kpi"><div class="sub">Taxable ordinary</div><div class="big" id="taxableIncome">$0</div></div>
-          <div class="kpi"><div class="sub">Total tax</div><div class="big" id="totalTax">$0</div></div>
-          <div class="kpi"><div class="sub">Effective rate</div><div class="big" id="effRate">0%</div></div>
+    <!-- TOP ROW: Jurisdiction + Quick metrics -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <!-- Jurisdiction / status -->
+      <div class="card space-y-3">
+        <div>
+          <label class="label">Filing status</label>
+          <select id="filingStatus" class="select">
+            <option value="single">Single</option>
+            <option value="marriedFilingJointly">Married filing jointly</option>
+            <option value="headOfHousehold">Head of household</option>
+          </select>
         </div>
-
-        <div class="row mt-8">
-          <div class="badge" id="currentMarginal">Marginal —</div>
-          <div class="badge" id="toNext">To next: —</div>
+        <div>
+          <label class="label">State</label>
+          <select id="state" class="select"></select>
         </div>
-
-        <div class="row mt-8">
-          <div class="badge down" id="pretaxSave">Tax saved by pretax: $0</div>
-          <div class="badge" id="deltaEff">Δ effective: 0 pp</div>
-        </div>
-
-        <div class="row mt-8">
-          <div class="badge" id="lockDeltaTax">Δ vs lock: $0</div>
-          <div class="badge" id="lockDeltaTI">Δ TI vs lock: $0</div>
+        <div class="text-xs text-slate-400">
+          Data year: 2025 federal and state. Federal brackets & standard deduction from IRS.
+          State data loaded from <code class="kbd">states_2025.json</code>.
         </div>
       </div>
 
-      <div class="card">
-        <h3 style="margin:0 0 8px 0;">Bracket Waterfall</h3>
-        <div id="waterfall" class="waterfall"></div>
+      <!-- KPI metrics -->
+      <div class="card grid grid-cols-2 gap-3">
+        <div class="metric"><div class="label">Total income</div><div id="mTotalIncome" class="text-xl font-bold">$0</div></div>
+        <div class="metric"><div class="label">Taxable ordinary</div><div id="mTaxable" class="text-xl font-bold">$0</div></div>
+        <div class="metric"><div class="label">Federal tax</div><div id="mFed" class="text-xl font-bold">$0</div></div>
+        <div class="metric"><div class="label">State tax</div><div id="mState" class="text-xl font-bold">$0</div></div>
+        <div class="metric"><div class="label">Effective total</div><div id="mEff" class="text-xl font-bold">0.0%</div></div>
+        <div class="metric"><div class="label">Current marginal</div><div id="mMarginal" class="text-xl font-bold">—</div></div>
+      </div>
+
+      <!-- View toggle + lock -->
+      <div class="card space-y-2">
+        <div class="flex gap-2">
+          <button id="viewFederal" class="btn btn-primary">Federal</button>
+          <button id="viewState" class="btn">State</button>
+          <div class="ml-auto flex gap-2">
+            <button id="lockBtn" class="btn">Lock baseline</button>
+            <button id="clearLockBtn" class="btn btn-ghost">Clear</button>
+          </div>
+        </div>
+        <div id="lockInfo" class="hidden text-sm text-slate-300">
+          Baseline locked. Showing Δ vs baseline in chips below.
+        </div>
+        <div id="deltaChips" class="flex flex-wrap gap-2"></div>
       </div>
     </div>
 
-    <footer class="mt-12 help">Illustrative only. 2025 brackets. No self-employment quirks. Don’t file with this unless you like audits.</footer>
+    <!-- GRID: Inputs + Waterfall + Breakdown -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <!-- Inputs -->
+      <div class="card space-y-5">
+        <h2 class="text-lg font-semibold">Income & Deferrals</h2>
+
+        <div class="space-y-2">
+          <div class="text-slate-300 font-semibold" id="earner1Label">Earner 1</div>
+          <div class="grid grid-cols-form gap-2 items-center">
+            <label>Salary</label>
+            <div class="field">
+              <input id="e1SalaryText" type="text" value="120,000"/>
+              <input id="e1Salary" class="range" type="range" min="0" max="500000" step="1000" value="120000"/>
+            </div>
+          </div>
+          <div class="grid grid-cols-form gap-2 items-center">
+            <label>Bonus / RSU</label>
+            <div class="field">
+              <input id="e1BonusText" type="text" value="15,000"/>
+              <input id="e1Bonus" class="range" type="range" min="0" max="300000" step="500" value="15000"/>
+            </div>
+          </div>
+        </div>
+
+        <div id="earner2Box" class="hidden space-y-2">
+          <div class="text-slate-300 font-semibold">Earner 2</div>
+          <div class="grid grid-cols-form gap-2 items-center">
+            <label>Salary</label>
+            <div class="field">
+              <input id="e2SalaryText" type="text" value="0"/>
+              <input id="e2Salary" class="range" type="range" min="0" max="500000" step="1000" value="0"/>
+            </div>
+          </div>
+          <div class="grid grid-cols-form gap-2 items-center">
+            <label>Bonus / RSU</label>
+            <div class="field">
+              <input id="e2BonusText" type="text" value="0"/>
+              <input id="e2Bonus" class="range" type="range" min="0" max="300000" step="500" value="0"/>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-form gap-2 items-center">
+          <label>Other ordinary (STCG, interest)</label>
+          <div class="field">
+            <input id="otherOrdText" type="text" value="5,000"/>
+            <input id="otherOrd" class="range" type="range" min="0" max="150000" step="500" value="5000"/>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-700 pt-3 space-y-2">
+          <div class="grid grid-cols-form gap-2 items-center">
+            <label>Traditional 401(k)</label>
+            <div class="field">
+              <input id="trad401kText" type="text" value="23,500"/>
+              <input id="trad401k" class="range" type="range" min="0" max="23500" step="250" value="23500"/>
+            </div>
+          </div>
+          <div class="grid grid-cols-form gap-2 items-center">
+            <label>Roth 401(k)</label>
+            <div class="field">
+              <input id="roth401kText" type="text" value="0"/>
+              <input id="roth401k" class="range" type="range" min="0" max="0" step="250" value="0"/>
+            </div>
+          </div>
+          <div class="text-xs text-slate-400">
+            Combined employee deferral limit per earner: <span id="kLimitLabel">$23,500</span>. Catch-up (50+) not modeled here.
+          </div>
+          <div class="grid grid-cols-form gap-2 items-center">
+            <label>HSA (pre-tax)</label>
+            <div class="field">
+              <input id="hsaText" type="text" value="0"/>
+              <input id="hsa" class="range" type="range" min="0" max="8550" step="50" value="0"/>
+            </div>
+          </div>
+          <div class="grid grid-cols-form gap-2 items-center">
+            <label>Itemized deductions</label>
+            <div class="field">
+              <input id="itemizedText" type="text" value="0"/>
+              <input id="itemized" class="range" type="range" min="0" max="200000" step="250" value="0"/>
+            </div>
+          </div>
+          <div class="field items-center justify-between">
+            <div>
+              <label class="label">Deduction mode</label>
+              <div class="flex gap-2">
+                <button id="dedStd" class="btn btn-primary">Standard</button>
+                <button id="dedItem" class="btn">Itemized</button>
+              </div>
+            </div>
+            <div class="text-sm text-slate-300">
+              Standard: <span id="stdDedLabel">$0</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-700 pt-3 space-y-2">
+          <h3 class="text-sm font-semibold text-slate-300">Credits (simple)</h3>
+          <div class="grid grid-cols-form gap-2 items-center">
+            <label>Other nonrefundable credits</label>
+            <div class="field">
+              <input id="creditsText" type="text" value="0"/>
+              <input id="credits" class="range" type="range" min="0" max="20000" step="100" value="0"/>
+            </div>
+          </div>
+          <div class="text-xs text-slate-400">
+            Modeled as a dollar-for-dollar reduction to federal tax. Complex phaseouts deliberately not modeled.
+          </div>
+        </div>
+      </div>
+
+      <!-- CENTER/RIGHT: Waterfall + breakdown -->
+      <div class="lg:col-span-2 card space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 id="wfTitle" class="text-lg font-semibold">Federal Waterfall (Ordinary Income)</h2>
+          <div class="text-sm text-slate-400">
+            <span class="pill">To next: <span id="toNext">$0</span></span>
+            <span class="pill">To drop: <span id="toDrop">$0</span></span>
+          </div>
+        </div>
+
+        <div id="waterfall" class="space-y-3"></div>
+
+        <div class="border-t border-slate-700 pt-3">
+          <h3 class="text-sm font-semibold text-slate-300 mb-2">Layer breakdown</h3>
+          <div id="breakdown" class="text-sm text-slate-300 space-y-1"></div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="text-xs text-slate-500 text-center pt-4">
+      Illustration only. Uses 2025 tables; excludes self-employment tax and AMT. Verify with your tax pro before doing anything heroic.
+    </footer>
   </div>
+
   <script src="app.js"></script>
 </body>
+</html>
