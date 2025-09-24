@@ -1,0 +1,80 @@
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tax Waterfall Visualizer</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Optional: Inter font, or swap for system-ui only -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <header class="row" style="margin-bottom: 16px;">
+      <h1>Tax Waterfall Visualizer · 2025</h1>
+      <div class="row" style="gap:8px">
+        <div class="toggle" id="viewToggle">
+          <button id="federalBtn" class="active">Federal</button>
+          <button id="stateBtn">State</button>
+        </div>
+        <div class="toggle" id="themeToggle">
+          <button data-theme="light">☀️</button>
+          <button data-theme="dark">🌙</button>
+        </div>
+        <button class="button" id="lockBtn">Lock in</button>
+        <button class="button" id="resetLockBtn">Clear lock</button>
+      </div>
+    </header>
+
+    <div class="grid grid-3">
+      <div class="card">
+        <!-- your existing inputs here; add the three new blocks -->
+        <div class="row"><div class="label">Trad 401(k)</div><div class="value"><span id="tradKDisplay">$0</span></div></div>
+        <input type="range" id="tradK" min="0" step="250" value="0">
+
+        <div class="row"><div class="label">Roth 401(k)</div><div class="value"><span id="rothKDisplay">$0</span></div></div>
+        <input type="range" id="rothK" min="0" step="250" value="0">
+
+        <div class="help">Combined 401(k) employee contributions capped by IRS (auto-enforced).</div>
+
+        <div class="row" style="margin-top:12px"><div class="label">HSA (pretax)</div><div class="value"><span id="hsaDisplay">$0</span></div></div>
+        <input type="range" id="hsa" min="0" step="50" value="0">
+        <div class="help">HSA reduces taxable income; family/single limit auto-enforced.</div>
+
+        <!-- keep your existing salary/bonus/other sliders; number inputs formatted by JS below -->
+      </div>
+
+      <div class="card">
+        <div class="kpis">
+          <div class="kpi"><div class="sub">Total income</div><div class="big" id="totalIncome">$0</div></div>
+          <div class="kpi"><div class="sub">Taxable ordinary</div><div class="big" id="taxableIncome">$0</div></div>
+          <div class="kpi"><div class="sub">Total tax</div><div class="big" id="totalTax">$0</div></div>
+          <div class="kpi"><div class="sub">Effective rate</div><div class="big" id="effRate">0%</div></div>
+        </div>
+
+        <div class="row mt-8">
+          <div class="badge" id="currentMarginal">Marginal —</div>
+          <div class="badge" id="toNext">To next: —</div>
+        </div>
+
+        <div class="row mt-8">
+          <div class="badge down" id="pretaxSave">Tax saved by pretax: $0</div>
+          <div class="badge" id="deltaEff">Δ effective: 0 pp</div>
+        </div>
+
+        <div class="row mt-8">
+          <div class="badge" id="lockDeltaTax">Δ vs lock: $0</div>
+          <div class="badge" id="lockDeltaTI">Δ TI vs lock: $0</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin:0 0 8px 0;">Bracket Waterfall</h3>
+        <div id="waterfall" class="waterfall"></div>
+      </div>
+    </div>
+
+    <footer class="mt-12 help">Illustrative only. 2025 brackets. No self-employment quirks. Don’t file with this unless you like audits.</footer>
+  </div>
+  <script src="app.js"></script>
+</body>
