@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoRef V2.0 | Demo </title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-app: #1A202C; --bg-panel: #2D3748; --bg-sidebar: #171923;
+            --border: #4A5568; --primary: #00D4AA; --primary-hover: #00B38F;
+            --text-main: #FFFFFF; --text-muted: #CBD5E0; --danger: #F56565;
+        }
+        body, html { height: 100%; margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background: var(--bg-app); color: var(--text-main); }
+        #app { display: flex; flex-direction: column; height: 100vh; }
+
+        header { height: 56px; background: var(--bg-sidebar); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; justify-content: space-between; z-index: 20; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+        .brand { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 10px; }
+        .brand-icon { width: 32px; height: 32px; background: var(--primary); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #171923; font-size: 18px; }
+        .toolbar { display: flex; gap: 12px; align-items: center; }
+
+        #workspace { flex: 1; display: flex; position: relative; overflow: hidden; }
+        #img-col { flex: 1; background: var(--bg-app); position: relative; overflow: hidden; border-right: 1px solid var(--border); }
+        #img-stage { transform-origin: 0 0; position: absolute; cursor: crosshair; }
+        #source-img { display: block; box-shadow: 0 0 40px rgba(0,0,0,0.5); pointer-events: none; }
+        #empty-state { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: var(--text-muted); pointer-events: none; }
+        #empty-state i { opacity: 0.3; margin-bottom: 15px; font-size: 48px; }
+        #empty-state h3 { font-size: 18px; margin: 0 0 8px 0; }
+
+        #map-col { flex: 1; position: relative; background: #000; }
+        #map { width: 100%; height: 100%; z-index: 1; }
+        
+        /* WARP LAYER */
+        .warp-img { position: absolute; top: 0; left: 0; transform-origin: 0 0; pointer-events: none; opacity: 0.7; user-select: none; will-change: transform; }
+
+        /* UI */
+        button { background: var(--bg-panel); border: 1px solid var(--border); color: var(--text-main); padding: 8px 16px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; transition: all 0.2s; }
+        button:hover { background: #4A5568; border-color: #718096; }
+        button.primary { background: var(--primary); color: #171923; border: none; font-weight: 600; }
+        button.primary:hover { background: var(--primary-hover); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
+
+        .btn-group { display: flex; background: var(--bg-sidebar); padding: 4px; border-radius: 6px; border: 1px solid var(--border); gap: 2px; }
+        .btn-group button { background: transparent; border: none; color: var(--text-muted); padding: 6px 12px; border-radius: 4px; }
+        .btn-group button.active { background: var(--bg-panel); color: var(--primary); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+
+        .float-panel { position: absolute; top: 16px; right: 16px; width: 260px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: flex; flex-direction: column; gap: 12px; }
+        .float-panel h4 { margin: 0 0 6px 0; font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; }
+        select, input[type=range] { width: 100%; background: var(--bg-app); border: 1px solid var(--border); color: var(--text-main); padding: 8px; border-radius: 4px; outline: none; font-size: 13px; }
+        select:focus { border-color: var(--primary); }
+
+        /* MANUAL ADJUST UI */
+        .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .toggle { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-main); cursor: pointer; user-select: none; }
+        .toggle input { transform: scale(1.1); accent-color: var(--primary); }
+        .nudge-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-top: 5px; }
+        .nudge-grid button { justify-content: center; padding: 6px; font-size: 14px; }
+
+        #bottom-bar { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--bg-panel); border: 1px solid var(--border); padding: 8px; border-radius: 50px; display: flex; gap: 12px; z-index: 2000; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+        .fab { width: 42px; height: 42px; border-radius: 50%; justify-content: center; font-size: 16px; padding: 0; background: var(--bg-app); }
+        .fab.active { background: var(--primary); color: #171923; border-color: var(--primary); box-shadow: 0 0 15px rgba(0, 212, 170, 0.3); }
+
+        .marker-dot { position: absolute; width: 14px; height: 14px; background: var(--danger); border: 2px solid white; border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: white; }
+        #toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: var(--bg-panel); color: var(--text-main); padding: 10px 20px; border-radius: 30px; font-size: 13px; font-weight: 500; border: 1px solid var(--primary); opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        
+        .leaflet-bar { border: none !important; }
+        .leaflet-bar a { background-color: var(--bg-panel) !important; color: var(--text-muted) !important; border: 1px solid var(--border) !important; margin-bottom: 4px !important; border-radius: 4px !important; }
+        .leaflet-bar a:hover { background-color: var(--bg-app) !important; color: var(--text-main) !important; }
+        .leaflet-draw-toolbar a { color: var(--primary) !important; }
+        .manual-cursor { cursor: grab !important; }
+        .manual-cursor:active { cursor: grabbing !important; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <header>
+        <div class="brand">
+            <div class="brand-icon"><i class="fas fa-layer-group"></i></div>
+            <div>Data Viz <span style="color:var(--text-muted); font-weight:400; font-size: 14px;">| GeoRef Tool Beta</span></div>
+        </div>
+        <div class="toolbar">
+            <input type="file" id="file-in" hidden accept="image/*">
+            <button onclick="document.getElementById('file-in').click()"> <i class="fas fa-folder-plus"></i> Add Image </button>
+            <div class="btn-group">
+                <button class="active" id="m-gcp" onclick="app.setMode('gcp')">1. Reference</button>
+                <button id="m-digi" onclick="app.setMode('digi')" disabled>2. Digitize</button>
+            </div>
+            <button class="primary" onclick="app.export()"> <i class="fas fa-download"></i> Export </button>
+        </div>
+    </header>
+
+    <div id="workspace">
+        <div id="img-col">
+            <div id="empty-state">
+                <i class="far fa-image"></i>
+                <h3>No Image Loaded</h3>
+                <p>Upload a file or Paste (Ctrl+V) to begin.</p>
+            </div>
+            <div id="img-stage">
+                <img id="source-img" src="">
+                <div id="marker-layer"></div>
+            </div>
+        </div>
+
+        <div id="map-col">
+            <div id="map"></div>
+            <div class="float-panel">
+                <div>
+                    <h4>Basemap Layer</h4>
+                    <select id="basemapSel" onchange="app.setBasemap(this.value)">
+                        <option value="carto_dark">Carto Dark Matter</option>
+                        <option value="carto_positron">Carto Positron</option>
+                        <option value="osm">OpenStreetMap Standard</option>
+                        <option value="google_sat">Google Satellite</option>
+                        <option value="esri_world_imagery">Esri World Imagery</option>
+                    </select>
+                </div>
+                
+                <div id="warp-ui" style="display:none; border-top:1px solid var(--border); padding-top:12px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <h4>Opacity</h4>
+                        <span id="op-val" style="font-size:11px; color:var(--primary);">70%</span>
+                    </div>
+                    <input type="range" min="0" max="1" step="0.05" value="0.7" oninput="app.setOpacity(this.value)">
+
+                    <div style="border-top:1px solid var(--border); padding-top:12px; margin-top:12px;">
+                        <div class="row">
+                            <h4 style="margin:0;">Manual Adjust</h4>
+                            <label class="toggle">
+                                <input type="checkbox" id="manualToggle" onchange="app.setManualAdjust(this.checked)">
+                                <span>Enable</span>
+                            </label>
+                        </div>
+                        <div id="manualPanel" style="display:none; margin-top:10px; gap:10px; flex-direction:column;">
+                            <div style="font-size:11px; color:var(--text-muted);">Drag image on map to adjust position.</div>
+                            <div class="row" style="margin-bottom:0;">
+                                <span style="font-size:10px; color:var(--text-muted);">NUDGE</span>
+                                <span id="nudge-val" style="font-size:10px; color:var(--primary);">0, 0</span>
+                            </div>
+                            <div class="nudge-grid">
+                                <div></div><button onclick="app.nudge(0,-1)"><i class="fas fa-chevron-up"></i></button><div></div>
+                                <button onclick="app.nudge(-1,0)"><i class="fas fa-chevron-left"></i></button>
+                                <button onclick="app.resetManual()" title="Reset"><i class="fas fa-undo"></i></button>
+                                <button onclick="app.nudge(1,0)"><i class="fas fa-chevron-right"></i></button>
+                                <div></div><button onclick="app.nudge(0,1)"><i class="fas fa-chevron-down"></i></button><div></div>
+                            </div>
+                            <div>
+                                <div class="row" style="margin-bottom:6px;"><h4 style="margin:0;">Rotation</h4><span id="rot-val" style="font-size:11px; color:var(--primary);">0°</span></div>
+                                <input id="rotSlider" type="range" min="-5" max="5" step="0.1" value="0" oninput="app.setManualRotation(this.value)">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="bottom-bar">
+                <div id="gcp-tools" style="display:flex; gap:12px; align-items: center;">
+                    <button class="fab" id="btn-add" onclick="app.startAddPoint()" title="Add Reference Point (A)"><i class="fas fa-map-pin"></i></button>
+                    <button class="fab" onclick="app.undo()" title="Undo Last Point (Ctrl+Z)"><i class="fas fa-undo"></i></button>
+                </div>
+                <div id="digi-tools" style="display:none;">
+                    <button class="primary" style="border-radius:20px; padding: 8px 20px;" onclick="app.activatePicker()"><i class="fas fa-crosshairs"></i> Pick Coordinates</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="toast"><i class="fas fa-info-circle"></i> <span>Message</span></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+<script>
+const app = {
+    state: {
+        mode: 'gcp', step: 'idle', gcps: [], 
+        img: { w:0, h:0, url:null, loaded:false },
+        view: { x:0, y:0, scale:1, dragging:false, sx:0, sy:0 },
+        manual: { enabled:false, dx:0, dy:0, rotDeg:0, dragging:false, sx:0, sy:0, startDx:0, startDy:0 }
+    },
+    dom: {
+        stage: document.getElementById('img-stage'),
+        img: document.getElementById('source-img'),
+        markers: document.getElementById('marker-layer')
+    },
+    map: null,
+    layers: { base: {}, gcp: null, drawn: null },
+    warpEl: null,
+
+    init() {
+        this.map = L.map('map', {zoomControl:false}).setView([20,0], 2);
+        L.control.zoom({position:'bottomright'}).addTo(this.map);
+
+        // CREATE PANES
+        this.map.createPane('warpPane');
+        this.map.getPane('warpPane').style.zIndex = 450;
+        this.map.createPane('drawTop');
+        this.map.getPane('drawTop').style.zIndex = 900;
+
+        // BASEMAPS
+        this.layers.base.carto_dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '©CARTO' });
+        this.layers.base.carto_positron = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '©CARTO' });
+        this.layers.base.osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '©OSM' });
+        this.layers.base.google_sat = L.tileLayer('http://mt0.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}', { attribution: '©Google' });
+        this.layers.base.esri_world_imagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '©Esri' });
+
+        this.layers.base.carto_dark.addTo(this.map);
+        this.layers.gcp = L.featureGroup([], { pane: 'drawTop' }).addTo(this.map);
+        this.layers.drawn = L.featureGroup([], { pane: 'drawTop' }).addTo(this.map);
+
+        this.initDraw();
+        this.setupImageNav();
+
+        document.getElementById('file-in').addEventListener('change', e => this.loadFile(e.target.files[0]));
+        document.addEventListener('paste', e => this.handlePaste(e));
+        
+        window.addEventListener('keydown', e => {
+            if((e.ctrlKey||e.metaKey) && e.key==='z') this.undo();
+            if(e.key === 'Escape') this.resetStep();
+            if(e.key === 'a' && this.state.mode === 'gcp') this.startAddPoint();
+            if(this.state.manual.enabled && this.state.gcps.length >= 3) {
+                const step = e.shiftKey ? 10 : 1;
+                if(e.key === 'ArrowUp') { e.preventDefault(); this.nudge(0, -step); }
+                if(e.key === 'ArrowDown') { e.preventDefault(); this.nudge(0, step); }
+                if(e.key === 'ArrowLeft') { e.preventDefault(); this.nudge(-step, 0); }
+                if(e.key === 'ArrowRight') { e.preventDefault(); this.nudge(step, 0); }
+            }
+        });
+
+        // LOCK SYNC: Only update on Zoom (and Markers drag). 
+        // Leaflet handles Pan automatically via pane transform.
+        this.map.on('zoom', () => this.renderWarp());
+        this.map.on('click', e => this.onMapClick(e));
+
+        // Manual Drag handlers
+        const mc = this.map.getContainer();
+        mc.addEventListener('mousedown', (e) => this.onMapMouseDown(e));
+        window.addEventListener('mousemove', (e) => this.onMapMouseMove(e));
+        window.addEventListener('mouseup', () => this.onMapMouseUp());
+    },
+
+    initDraw() {
+        const opts = {
+            position: 'topleft',
+            draw: {
+                polyline:false, circle:false, circlemarker:false, marker:true,
+                polygon: { allowIntersection:false, showArea:true, shapeOptions:{color:'#00D4AA', pane:'drawTop'} },
+                rectangle: { shapeOptions:{color:'#00D4AA', pane:'drawTop'} }
+            },
+            edit: { featureGroup: this.layers.drawn, remove:true }
+        };
+        const drawControl = new L.Control.Draw(opts);
+        this.map.addControl(drawControl);
+        this.map.on(L.Draw.Event.CREATED, e => this.layers.drawn.addLayer(e.layer));
+    },
+
+    loadFile(f) { if(f) { const r = new FileReader(); r.onload = e => this.loadSrc(e.target.result); r.readAsDataURL(f); } },
+    handlePaste(e) {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (let i of items) if (i.type.indexOf("image") === 0) { const r = new FileReader(); r.onload = evt => this.loadSrc(evt.target.result); r.readAsDataURL(i.getAsFile()); }
+    },
+    loadSrc(src) {
+        this.dom.img.src = src;
+        this.dom.img.onload = () => {
+            this.state.img.w = this.dom.img.naturalWidth;
+            this.state.img.h = this.dom.img.naturalHeight;
+            this.state.img.loaded = true;
+            this.state.img.url = src;
+            this.dom.img.style.display = 'block';
+            document.getElementById('empty-state').style.display = 'none';
+            this.reset();
+            this.fitView();
+            this.createWarpEl();
+            this.toast("Image Loaded Successfully");
+        };
+    },
+    createWarpEl() {
+        if(this.warpEl) this.warpEl.remove();
+        const el = document.createElement('img');
+        el.src = this.state.img.url;
+        el.className = 'warp-img';
+        el.style.width = this.state.img.w + 'px';
+        el.style.height = this.state.img.h + 'px';
+        el.style.display = 'none';
+        this.map.getPane('warpPane').appendChild(el);
+        this.warpEl = el;
+    },
+
+    setupImageNav() {
+        const c = document.getElementById('img-col');
+        c.addEventListener('wheel', e => {
+            if(!this.state.img.loaded) return;
+            e.preventDefault();
+            const s = e.deltaY > 0 ? 0.9 : 1.1;
+            const r = c.getBoundingClientRect();
+            const ox = e.clientX - r.left, oy = e.clientY - r.top;
+            this.state.view.x = ox - (ox - this.state.view.x) * s;
+            this.state.view.y = oy - (oy - this.state.view.y) * s;
+            this.state.view.scale *= s;
+            this.updateStage();
+        });
+        c.addEventListener('mousedown', e => {
+            if(!this.state.img.loaded) return;
+            this.state.view.dragging = true;
+            this.state.view.sx = e.clientX - this.state.view.x;
+            this.state.view.sy = e.clientY - this.state.view.y;
+            this.dom.stage.style.cursor = 'grabbing';
+        });
+        window.addEventListener('mousemove', e => {
+            if(this.state.view.dragging) {
+                e.preventDefault();
+                this.state.view.x = e.clientX - this.state.view.sx;
+                this.state.view.y = e.clientY - this.state.view.sy;
+                this.updateStage();
+            }
+        });
+        window.addEventListener('mouseup', e => {
+            if(this.state.view.dragging) {
+                this.state.view.dragging = false;
+                this.dom.stage.style.cursor = this.state.step === 'pick-img' ? 'crosshair' : 'default';
+                const dist = Math.abs((e.clientX - this.state.view.sx) - this.state.view.x) + Math.abs((e.clientY - this.state.view.sy) - this.state.view.y);
+                if(dist < 3 && e.target.closest('#img-stage')) this.onImgClick(e);
+            }
+        });
+    },
+    updateStage() { this.dom.stage.style.transform = `translate(${this.state.view.x}px, ${this.state.view.y}px) scale(${this.state.view.scale})`; },
+    fitView() {
+        const c = document.getElementById('img-col');
+        const s = Math.min(c.clientWidth/this.state.img.w, c.clientHeight/this.state.img.h) * 0.8;
+        this.state.view.scale = s;
+        this.state.view.x = (c.clientWidth - this.state.img.w*s)/2;
+        this.state.view.y = (c.clientHeight - this.state.img.h*s)/2;
+        this.updateStage();
+    },
+
+    startAddPoint() {
+        this.state.step = 'pick-img';
+        document.getElementById('btn-add').classList.add('active');
+        this.dom.stage.style.cursor = 'crosshair';
+        this.toast("Click Point on Image");
+    },
+    onImgClick(e) {
+        if(this.state.step !== 'pick-img') return;
+        const r = this.dom.stage.getBoundingClientRect();
+        const x = (e.clientX - r.left) / this.state.view.scale;
+        const y = (e.clientY - r.top) / this.state.view.scale;
+        const id = this.state.gcps.length + 1;
+        const el = document.createElement('div');
+        el.className = 'marker-dot'; el.textContent = id; el.style.left = x+'px'; el.style.top = y+'px';
+        this.dom.markers.appendChild(el);
+        this.state.temp = { id, img:{x,y}, el };
+        this.state.step = 'pick-map';
+        this.map.getContainer().style.cursor = 'crosshair';
+        this.toast("Click Corresponding Location on Map");
+    },
+    onMapClick(e) {
+        if(this.state.step === 'pick-map' && this.state.temp) {
+            let lng = ((e.latlng.lng + 180) % 360 + 360) % 360 - 180;
+            const ll = L.latLng(e.latlng.lat, lng);
+            const m = L.marker(ll, {draggable:true, pane:'drawTop'}).addTo(this.layers.gcp);
+            m.bindTooltip(''+this.state.temp.id, {permanent:true, direction:'right', className:'gcp-tooltip'});
+            m.on('drag', () => this.renderWarp());
+            this.state.temp.marker = m;
+            this.state.gcps.push(this.state.temp);
+            this.resetStep();
+            this.toast("Point Added");
+            if(this.state.gcps.length >= 3) {
+                this.renderWarp();
+                document.getElementById('m-digi').disabled = false;
+                document.getElementById('warp-ui').style.display = 'block';
+            }
+        } else if (this.state.mode === 'digi' && document.body.style.cursor === 'crosshair') {
+            const txt = `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
+            navigator.clipboard.writeText(txt);
+            this.toast("Coordinate Copied to Clipboard");
+            document.body.style.cursor = '';
+        }
+    },
+    resetStep() {
+        this.state.step = 'idle'; this.state.temp = null;
+        document.getElementById('btn-add').classList.remove('active');
+        this.dom.stage.style.cursor = 'default';
+        this.map.getContainer().style.cursor = '';
+    },
+
+    renderWarp() {
+        if(this.state.gcps.length < 3 || !this.warpEl) return;
+        const src = [], dst = [];
+        this.state.gcps.forEach(p => {
+            src.push(p.img.x, p.img.y);
+            // CRITICAL CHANGE: latLngToLayerPoint locks the pixels to the PANE, not the CONTAINER.
+            // This prevents drift during pan.
+            const px = this.map.latLngToLayerPoint(p.marker.getLatLng());
+            dst.push(px.x, px.y);
+        });
+        try {
+            const manual = this.state.manual;
+            const dx = manual.dx || 0;
+            const dy = manual.dy || 0;
+            let t = null;
+            if(this.state.gcps.length === 3) {
+                const t = this.solveAffine(src, dst);
+                this.warpEl.style.transform = `matrix(${t[0]},${t[1]},${t[2]},${t[3]},${t[4]+dx},${t[5]+dy}) rotate(${manual.rotDeg}deg)`;
+            } else {
+                const h = this.solveHomography(src, dst);
+                this.warpEl.style.transform = `matrix3d(${h[0]},${h[3]},0,${h[6]},${h[1]},${h[4]},0,${h[7]},0,0,1,0,${h[2]+dx},${h[5]+dy},0,1) rotate(${manual.rotDeg}deg)`;
+            }
+            this.warpEl.style.display = 'block';
+        } catch(e) {}
+    },
+    solveAffine(src, dst) {
+        const X = [], Y = [];
+        for(let i=0; i<src.length; i+=2) { X.push([src[i], src[i+1], 1]); Y.push([dst[i], dst[i+1]]); }
+        try {
+            const Xm = math.matrix(X), Ym = math.matrix(Y);
+            const M = math.multiply(math.inv(math.multiply(math.transpose(Xm), Xm)), math.multiply(math.transpose(Xm), Ym)).toArray();
+            return [M[0][0], M[0][1], M[1][0], M[1][1], M[2][0], M[2][1]];
+        } catch(e) { return [1,0,0,1,0,0]; }
+    },
+    solveHomography(src, dst) {
+        let A=[], B=[];
+        for(let i=0; i<src.length; i+=2) {
+            const x=src[i], y=src[i+1], u=dst[i], v=dst[i+1];
+            A.push([x, y, 1, 0, 0, 0, -u*x, -u*y]); B.push(u);
+            A.push([0, 0, 0, x, y, 1, -v*x, -v*y]); B.push(v);
+        }
+        try { return math.multiply(math.pinv(math.matrix(A)), math.matrix(B)).toArray(); } catch(e) { return [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]; }
+    },
+
+    setManualAdjust(on) {
+        this.state.manual.enabled = !!on;
+        document.getElementById('manualPanel').style.display = on ? 'flex' : 'none';
+        const mc = this.map.getContainer();
+        if(on) mc.classList.add('manual-cursor'); else mc.classList.remove('manual-cursor');
+        this.toast(on ? "Manual Adjust Enabled" : "Manual Adjust Disabled");
+    },
+    setManualRotation(v) {
+        const deg = Number(v) || 0;
+        this.state.manual.rotDeg = deg;
+        document.getElementById('rot-val').textContent = `${deg}°`;
+        this.renderWarp();
+    },
+    resetManual() {
+        this.state.manual.dx = 0; this.state.manual.dy = 0; this.state.manual.rotDeg = 0;
+        document.getElementById('rotSlider').value = 0;
+        document.getElementById('rot-val').textContent = `0°`;
+        this.updateNudgeLabel();
+        this.renderWarp();
+        this.toast("Manual Adjust Reset");
+    },
+    nudge(dx, dy) {
+        this.state.manual.dx += dx;
+        this.state.manual.dy += dy;
+        this.updateNudgeLabel();
+        this.renderWarp();
+    },
+    updateNudgeLabel() { document.getElementById('nudge-val').textContent = `${this.state.manual.dx}, ${this.state.manual.dy}`; },
+
+    onMapMouseDown(e) {
+        if(!this.state.manual.enabled || !this.warpEl || this.warpEl.style.display === 'none') return;
+        const r = this.warpEl.getBoundingClientRect();
+        const x = e.clientX, y = e.clientY;
+        if(x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+            this.state.manual.dragging = true;
+            this.state.manual.sx = e.clientX; this.state.manual.sy = e.clientY;
+            this.state.manual.startDx = this.state.manual.dx; this.state.manual.startDy = this.state.manual.dy;
+            this.map.dragging.disable();
+        }
+    },
+    onMapMouseMove(e) {
+        if(!this.state.manual.dragging) return;
+        this.state.manual.dx = this.state.manual.startDx + (e.clientX - this.state.manual.sx);
+        this.state.manual.dy = this.state.manual.startDy + (e.clientY - this.state.manual.sy);
+        this.updateNudgeLabel();
+        this.renderWarp();
+    },
+    onMapMouseUp() {
+        if(!this.state.manual.dragging) return;
+        this.state.manual.dragging = false;
+        this.map.dragging.enable();
+    },
+
+    setMode(m) {
+        this.state.mode = m;
+        document.querySelectorAll('.btn-group button').forEach(b => b.classList.remove('active'));
+        if(m === 'gcp') {
+            document.getElementById('m-gcp').classList.add('active');
+            document.getElementById('gcp-tools').style.display='flex';
+            document.getElementById('digi-tools').style.display='none';
+            this.resetStep();
+        } else {
+            document.getElementById('m-digi').classList.add('active');
+            document.getElementById('gcp-tools').style.display='none';
+            document.getElementById('digi-tools').style.display='block';
+            this.resetStep();
+        }
+    },
+    setBasemap(v) {
+        Object.values(this.layers.base).forEach(l => this.map.removeLayer(l));
+        if(this.layers.base[v]) this.layers.base[v].addTo(this.map);
+    },
+    setOpacity(v) {
+        document.getElementById('op-val').innerText = Math.round(v*100) + '%';
+        if(this.warpEl) this.warpEl.style.opacity = v;
+    },
+    undo() {
+        if(this.state.gcps.length) {
+            const p = this.state.gcps.pop();
+            p.el.remove();
+            this.map.removeLayer(p.marker);
+            if(this.state.gcps.length < 3 && this.warpEl) {
+                this.warpEl.style.display = 'none';
+                document.getElementById('warp-ui').style.display = 'none';
+                document.getElementById('m-digi').disabled = true;
+                document.getElementById('manualToggle').checked = false;
+                this.setManualAdjust(false);
+            }
+            this.renderWarp();
+            this.toast("Undo Last Point");
+        }
+    },
+    reset() {
+        this.state.gcps = [];
+        this.layers.gcp.clearLayers();
+        this.layers.drawn.clearLayers();
+        if(this.warpEl) this.warpEl.style.display='none';
+        this.dom.markers.innerHTML = '';
+        document.getElementById('warp-ui').style.display = 'none';
+        document.getElementById('m-digi').disabled = true;
+        document.getElementById('manualToggle').checked = false;
+        this.state.manual = { enabled:false, dx:0, dy:0, rotDeg:0, dragging:false, sx:0, sy:0, startDx:0, startDy:0 };
+        document.getElementById('rotSlider').value = 0;
+        document.getElementById('rot-val').textContent = '0°';
+        this.updateNudgeLabel();
+        this.setMode('gcp');
+    },
+    activatePicker() {
+        document.body.style.cursor = 'crosshair';
+        this.toast("Click Map to Copy Coordinate");
+    },
+    export() {
+        const d = this.layers.drawn.toGeoJSON();
+        if(!d.features.length) return this.toast("No Features to Export!");
+        const fix = c => typeof c[0]=='number' ?
+            [Number((((c[0]+180)%360+360)%360-180).toFixed(6)), Number(Math.max(-90,Math.min(90,c[1])).toFixed(6))] : c.map(fix);
+        d.features.forEach(f => f.geometry.coordinates = fix(f.geometry.coordinates));
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'}));
+        a.download = 'georef_data.geojson';
+        a.click();
+    },
+    toast(m) {
+        const t = document.getElementById('toast');
+        t.querySelector('span').innerText = m;
+        t.style.opacity = 1; setTimeout(()=>t.style.opacity=0, 3000);
+    }
+};
+
+window.onload = () => app.init();
+</script>
+</body>
+</html>
