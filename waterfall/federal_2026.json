@@ -1,0 +1,48 @@
+{
+  "standardDeduction": {
+    "single": 16100,
+    "marriedFilingJointly": 32200,
+    "headOfHousehold": 24150
+  },
+  "brackets": {
+    "single": [
+      { "rate": 0.10, "threshold": 12400 },
+      { "rate": 0.12, "threshold": 50400 },
+      { "rate": 0.22, "threshold": 105700 },
+      { "rate": 0.24, "threshold": 201775 },
+      { "rate": 0.32, "threshold": 256225 },
+      { "rate": 0.35, "threshold": 640600 },
+      { "rate": 0.37, "threshold": null }
+    ],
+    "marriedFilingJointly": [
+      { "rate": 0.10, "threshold": 24800 },
+      { "rate": 0.12, "threshold": 100800 },
+      { "rate": 0.22, "threshold": 211400 },
+      { "rate": 0.24, "threshold": 403550 },
+      { "rate": 0.32, "threshold": 512450 },
+      { "rate": 0.35, "threshold": 768700 },
+      { "rate": 0.37, "threshold": null }
+    ],
+    "headOfHousehold": [
+      { "rate": 0.10, "threshold": 17700 },
+      { "rate": 0.12, "threshold": 67450 },
+      { "rate": 0.22, "threshold": 105700 },
+      { "rate": 0.24, "threshold": 201750 },
+      { "rate": 0.32, "threshold": 256200 },
+      { "rate": 0.35, "threshold": 640600 },
+      { "rate": 0.37, "threshold": null }
+    ]
+  },
+  "contributionLimits": {
+    "k401": {
+      "employeeDeferral": 24500,
+      "catchUp50Plus": 8000,
+      "superCatchUp60to63": 11250
+    },
+    "hsa": {
+      "selfOnly": 4400,
+      "family": 8750,
+      "catchUp55Plus": 1000
+    }
+  }
+}
